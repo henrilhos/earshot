@@ -94,7 +94,7 @@ async function api(path: string, init: RequestInit = {}): Promise<Response> {
 
 // Strips the noise that keeps otherwise identical titles from comparing
 // equal: "(Remastered 2011)", "- Live", feat. credits, punctuation.
-export function normalize(str: string): string {
+function normalize(str: string): string {
   return str
     .toLowerCase()
     .replace(/\(feat\.?[^)]*\)/g, '')
