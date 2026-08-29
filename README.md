@@ -21,6 +21,10 @@ re-queue whatever was playing when you stopped it.
 
 ## Setup
 
+Needs Node 22.18 or newer. The source is TypeScript, and Node runs it
+directly by stripping the types, so there is no build step and nothing to
+install to run it.
+
 ### 1. Last.fm API key
 
 Free and instant: https://www.last.fm/api/account/create. The key is all
@@ -42,10 +46,9 @@ cp .env.example .env
 # SPOTIFY_CLIENT_ID, SPOTIFY_CLIENT_SECRET
 ```
 
-### 4. Install and authorize
+### 4. Authorize
 
 ```bash
-npm install
 npm run auth
 ```
 
@@ -61,6 +64,9 @@ npm start
 
 Leave it running. Open Spotify and play something so queued tracks have
 somewhere to land.
+
+To typecheck after changing something, `npm install` once for the dev
+dependencies, then `npm run typecheck`.
 
 ## Notes and limitations
 
