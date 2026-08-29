@@ -92,16 +92,28 @@ async function api(path: string, init: RequestInit = {}): Promise<Response> {
   });
 }
 
+// Version markers that Last.fm and Spotify spell differently, in English and
+// pt-BR: "Ao Vivo", "Remasterizado 2011", "Versão Acústica", "Edição Especial".
+const VERSION_TERMS =
+  'remaster|ao vivo|live|versao|version|mix|edit|edicao|mono|stereo|acustic';
+
+// Brazilian releases credit featured artists with "part." (participação)
+// instead of "feat.". The dot is required so titles like "Part 1" survive.
+const FEATURE_TERMS = 'feat\\.?|ft\\.|part\\.|participacao';
+
 // Strips the noise that keeps otherwise identical titles from comparing
-// equal: "(Remastered 2011)", "- Live", feat. credits, punctuation.
+// equal: "(Remastered 2011)", "- Ao Vivo", feat./part. credits, punctuation.
 function normalize(str: string): string {
   return str
     .toLowerCase()
-    .replace(/\(feat\.?[^)]*\)/g, '')
+    // Accents first, so "Versão" reaches the term lists as "versao".
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .replace(new RegExp(`\\((?:${FEATURE_TERMS})[^)]*\\)`, 'g'), '')
     .replace(/\[[^\]]*\]/g, '')
-    .replace(/\(.*?(remaster|live|version|mix|edit|mono|stereo).*?\)/g, '')
-    .replace(/-\s*(remaster|live|version|mix|edit|mono|stereo).*/g, '')
-    .replace(/feat\.?.*/g, '')
+    .replace(new RegExp(`\\(.*?(?:${VERSION_TERMS}).*?\\)`, 'g'), '')
+    .replace(new RegExp(`-\\s*(?:${VERSION_TERMS}).*`, 'g'), '')
+    .replace(new RegExp(`(?:${FEATURE_TERMS}).*`, 'g'), '')
     .replace(/[^\w\s]/g, '')
     .replace(/\s+/g, ' ')
     .trim();
