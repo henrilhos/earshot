@@ -14,7 +14,7 @@ const server = createServer(async (req, res) => {
     return;
   }
 
-  let failure: unknown = null;
+  let failed = false;
   try {
     const error = url.searchParams.get('error');
     if (error) throw new Error(`Spotify returned an error: ${error}`);
@@ -24,15 +24,15 @@ const server = createServer(async (req, res) => {
 
     await saveTokensForCode(code);
     res.writeHead(200).end('Success! You can close this tab and go back to the terminal.');
-    console.log('\nSaved tokens.json. You can close this tab and run `npm start`.\n');
+    console.log('\nSaved tokens.json. Run `npm start`.\n');
   } catch (err) {
-    failure = err;
+    failed = true;
     res.writeHead(500).end('Authorization failed. Check the terminal.');
     console.error(err);
   } finally {
     // Give the browser a moment to receive the response before shutting down.
     server.close();
-    setTimeout(() => process.exit(failure ? 1 : 0), 500);
+    setTimeout(() => process.exit(failed ? 1 : 0), 500);
   }
 });
 
