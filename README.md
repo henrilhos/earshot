@@ -80,8 +80,8 @@ They share `state.json` and keep one entry each, so they don't overwrite
 each other's progress. Two instances watching the *same* account won't
 queue the track twice either: whichever one records it first wins.
 
-To typecheck after changing something, `npm install` once for the dev
-dependencies, then `npm run typecheck`.
+To check your changes, `npm install` once for the dev dependencies, then
+`npm run typecheck` and `npm test`.
 
 ## Notes and limitations
 

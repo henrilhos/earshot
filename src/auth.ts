@@ -2,9 +2,14 @@
 // Spotify, and this saves tokens.json with the refresh token that src/index.ts
 // uses from then on (until you revoke it).
 import { createServer } from 'node:http';
-import { authorizeUrl, redirectUri, saveTokensForCode } from './spotify.ts';
+import { authorizeUrl, exchangeCode } from '../packages/core/index.ts';
+import { loadSpotifyApp } from './config.ts';
+import { loadOrFail } from './fail.ts';
+import { saveTokens } from './tokens.ts';
 
-const callback = new URL(redirectUri);
+const app = loadOrFail(loadSpotifyApp);
+
+const callback = new URL(app.redirectUri);
 const port = Number(callback.port) || 8888;
 
 const server = createServer(async (req, res) => {
@@ -22,7 +27,7 @@ const server = createServer(async (req, res) => {
     const code = url.searchParams.get('code');
     if (!code) throw new Error('Spotify did not send an authorization code.');
 
-    await saveTokensForCode(code);
+    saveTokens(await exchangeCode(app, code));
     res.writeHead(200).end('Success! You can close this tab and go back to the terminal.');
     console.log('\nSaved tokens.json. Run `npm start`.\n');
   } catch (err) {
@@ -38,6 +43,6 @@ const server = createServer(async (req, res) => {
 
 server.listen(port, () => {
   console.log('\nOpen this URL to authorize (this is YOUR Spotify account - the queue owner):\n');
-  console.log(authorizeUrl());
+  console.log(authorizeUrl(app));
   console.log(`\nWaiting for callback on port ${port}...\n`);
 });

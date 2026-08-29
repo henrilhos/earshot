@@ -34,7 +34,9 @@
   "scripts": {
     "auth": "node src/auth.ts",
     "start": "node src/index.ts",
-    "typecheck": "tsc"
+    "typecheck": "tsc",
+    "test": "node --test \"packages/**/*.test.ts\"",
+    "verify:core": "node scripts/verify-core.js"
   },
   "devDependencies": {
     "@types/node": "^24.3.0",

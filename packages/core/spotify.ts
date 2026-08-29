@@ -1,16 +1,15 @@
-import { Buffer } from 'node:buffer';
-import { requireEnv } from './env.ts';
-import { readJson, writeJson } from './json-file.ts';
+// The Instance's own Spotify app registration, or a Queue Owner's own.
+export type SpotifyApp = {
+  clientId: string;
+  clientSecret: string;
+  redirectUri: string;
+};
 
-const CLIENT_ID = requireEnv('SPOTIFY_CLIENT_ID');
-const CLIENT_SECRET = requireEnv('SPOTIFY_CLIENT_SECRET');
-const TOKENS_FILE = 'tokens.json';
-
-// user-modify-playback-state -> add to queue
-// user-read-playback-state   -> check there's an active device before queueing
-const SCOPES = 'user-modify-playback-state user-read-playback-state';
-
-export const redirectUri = requireEnv('SPOTIFY_REDIRECT_URI');
+export type SpotifyTokens = {
+  access_token: string;
+  refresh_token?: string;
+  expires_in: number;
+};
 
 export type SpotifyTrack = {
   uri: string;
@@ -18,78 +17,97 @@ export type SpotifyTrack = {
   artists: { name: string }[];
 };
 
-type Tokens = {
-  access_token: string;
-  refresh_token?: string;
-  expires_in: number;
-};
+// One authorized Spotify identity's view of the API. Every call carries that
+// Queue Owner's access token, so a process can hold several at once.
+export type SpotifyApi = (path: string, init?: RequestInit) => Promise<Response>;
 
-async function requestTokens(grant: Record<string, string>): Promise<Tokens> {
+// user-modify-playback-state -> add to queue
+// user-read-playback-state   -> check there's an active device before queueing
+const SCOPES = 'user-modify-playback-state user-read-playback-state';
+
+// btoa rather than node:buffer, since this has to run on workerd too. Client
+// credentials are ASCII, which is all btoa accepts.
+function basicAuth(app: SpotifyApp): string {
+  return `Basic ${btoa(`${app.clientId}:${app.clientSecret}`)}`;
+}
+
+async function requestTokens(app: SpotifyApp, grant: Record<string, string>): Promise<SpotifyTokens> {
   const res = await fetch('https://accounts.spotify.com/api/token', {
     method: 'POST',
     headers: {
       'Content-Type': 'application/x-www-form-urlencoded',
-      Authorization: `Basic ${Buffer.from(`${CLIENT_ID}:${CLIENT_SECRET}`).toString('base64')}`,
+      Authorization: basicAuth(app),
     },
     body: new URLSearchParams(grant),
   });
 
-  const data = (await res.json()) as Tokens;
+  const data = (await res.json()) as SpotifyTokens;
   if (!res.ok) throw new Error(`Spotify token request failed: ${JSON.stringify(data)}`);
   return data;
 }
 
-export function authorizeUrl(): string {
+export function authorizeUrl(app: SpotifyApp): string {
   const query = new URLSearchParams({
     response_type: 'code',
-    client_id: CLIENT_ID,
+    client_id: app.clientId,
     scope: SCOPES,
-    redirect_uri: redirectUri,
+    redirect_uri: app.redirectUri,
   });
   return `https://accounts.spotify.com/authorize?${query}`;
 }
 
-export async function saveTokensForCode(code: string): Promise<void> {
-  const tokens = await requestTokens({
+export function exchangeCode(app: SpotifyApp, code: string): Promise<SpotifyTokens> {
+  return requestTokens(app, {
     grant_type: 'authorization_code',
     code,
-    redirect_uri: redirectUri,
+    redirect_uri: app.redirectUri,
   });
-  writeJson(TOKENS_FILE, tokens);
 }
 
-let accessToken: string | null = null;
-let expiresAt = 0;
+export function refreshTokens(app: SpotifyApp, refreshToken: string): Promise<SpotifyTokens> {
+  return requestTokens(app, {
+    grant_type: 'refresh_token',
+    refresh_token: refreshToken,
+  });
+}
 
-// Access tokens expire after an hour; the refresh token is long-lived.
-async function getAccessToken(): Promise<string> {
-  if (accessToken && Date.now() < expiresAt - 30_000) return accessToken;
+// The access token is cached in this closure rather than at module level, so
+// two of these can exist side by side without one answering as the other.
+export function spotifyApi(options: {
+  app: SpotifyApp;
+  readTokens: () => SpotifyTokens | null | Promise<SpotifyTokens | null>;
+  saveTokens: (tokens: SpotifyTokens) => void | Promise<void>;
+}): SpotifyApi {
+  let accessToken: string | null = null;
+  let expiresAt = 0;
 
-  const stored = readJson<Tokens>(TOKENS_FILE);
-  if (!stored?.refresh_token) {
-    throw new Error('No usable tokens.json. Run `npm run auth` first.');
+  // Access tokens expire after an hour; the refresh token is long-lived.
+  async function getAccessToken(): Promise<string> {
+    if (accessToken && Date.now() < expiresAt - 30_000) return accessToken;
+
+    const stored = await options.readTokens();
+    if (!stored?.refresh_token) {
+      throw new Error('No stored Spotify authorization to refresh.');
+    }
+
+    const tokens = await refreshTokens(options.app, stored.refresh_token);
+
+    accessToken = tokens.access_token;
+    expiresAt = Date.now() + tokens.expires_in * 1000;
+
+    // Spotify sometimes rotates the refresh token itself; persist if so.
+    if (tokens.refresh_token) await options.saveTokens({ ...stored, ...tokens });
+
+    return accessToken;
   }
 
-  const tokens = await requestTokens({
-    grant_type: 'refresh_token',
-    refresh_token: stored.refresh_token,
-  });
-
-  accessToken = tokens.access_token;
-  expiresAt = Date.now() + tokens.expires_in * 1000;
-
-  // Spotify sometimes rotates the refresh token itself; persist if so.
-  if (tokens.refresh_token) writeJson(TOKENS_FILE, { ...stored, ...tokens });
-
-  return accessToken;
-}
-
-async function api(path: string, init: RequestInit = {}): Promise<Response> {
-  const token = await getAccessToken();
-  return fetch(`https://api.spotify.com/v1${path}`, {
-    ...init,
-    headers: { ...init.headers, Authorization: `Bearer ${token}` },
-  });
+  return async (path, init = {}) => {
+    const token = await getAccessToken();
+    return fetch(`https://api.spotify.com/v1${path}`, {
+      ...init,
+      headers: { ...init.headers, Authorization: `Bearer ${token}` },
+    });
+  };
 }
 
 // Version markers that Last.fm and Spotify spell differently, in English and
@@ -121,7 +139,11 @@ function normalize(str: string): string {
 
 // The fallback to the top result is deliberate: Spotify's own relevance
 // ranking is usually better than nothing when nothing matches exactly.
-export async function findTrack(artist: string, title: string): Promise<SpotifyTrack | null> {
+export async function findTrack(
+  api: SpotifyApi,
+  artist: string,
+  title: string,
+): Promise<SpotifyTrack | null> {
   const wantTitle = normalize(title);
   const wantArtist = normalize(artist);
 
@@ -150,14 +172,14 @@ export async function findTrack(artist: string, title: string): Promise<SpotifyT
 
 // The queue endpoint returns 404 "No active device found" when nothing is
 // playing anywhere, so check before queueing and report a skip instead.
-export async function hasActiveDevice(): Promise<boolean> {
+export async function hasActiveDevice(api: SpotifyApi): Promise<boolean> {
   const res = await api('/me/player');
   if (!res.ok || res.status === 204) return false;
   const data = (await res.json()) as { device?: unknown };
   return Boolean(data.device);
 }
 
-export async function queueTrack(uri: string): Promise<void> {
+export async function queueTrack(api: SpotifyApi, uri: string): Promise<void> {
   const res = await api(`/me/player/queue?${new URLSearchParams({ uri })}`, { method: 'POST' });
   if (!res.ok) {
     throw new Error(`Failed to queue track (${res.status}): ${await res.text()}`);
