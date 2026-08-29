@@ -1,60 +1,57 @@
 # lastfm-spotify-sync
 
-Watches someone else's Last.fm "now playing" and, the first time it sees a
-new track, adds the matching song to the end of **your** Spotify queue.
-One-shot per track — it won't keep re-adding it, and it won't touch your
-queue if it isn't already actively playing something.
+Watches someone else's Last.fm "now playing" and adds each new track to the
+end of your Spotify queue. Once per track. It only ever appends, and it
+won't touch your queue unless Spotify is already playing.
 
 ## How it works
 
-1. Polls `user.getRecentTracks` on Last.fm for the target user every 30s
-   (configurable). Only the public API is needed — no auth for Last.fm.
-2. When the `nowplaying` track changes, searches Spotify for a matching
-   track (artist + title, with fuzzy normalization for things like
-   "- Remastered 2011" or "(feat. X)").
-3. If a match is found **and** you have an active Spotify playback session
-   open (app open and something loaded/playing), queues it via
-   `POST /me/player/queue`.
-4. If no match is found, or you have no active device, it logs that and
-   moves on — it never retries the same track.
+1. Every 30 seconds (configurable), it calls `user.getRecentTracks` for the
+   target user. Last.fm needs an API key but no OAuth, since recent tracks
+   are public.
+2. When the `nowplaying` track changes, it searches Spotify by artist and
+   title. The search strips noise like "- Remastered 2011" and "(feat. X)"
+   before comparing.
+3. If it finds a match and you have an active playback session, it queues
+   the track with `POST /me/player/queue`.
+4. Otherwise it logs the reason and moves on. It never retries a track.
 
-State (the last track key seen) is persisted to `state.json` so a restart
-doesn't immediately re-queue whatever was last processed.
+It writes the last track it saw to `state.json`, so restarting won't
+re-queue whatever was playing when you stopped it.
 
 ## Setup
 
 ### 1. Last.fm API key
 
-Free, instant: https://www.last.fm/api/account/create
-You just need the API key — no secret, no OAuth, since recent tracks are
-public data.
+Free and instant: https://www.last.fm/api/account/create. The key is all
+you need. No secret, no OAuth.
 
 ### 2. Spotify app
 
-Create one at https://developer.spotify.com/dashboard
+Create one at https://developer.spotify.com/dashboard.
 
-- Add a Redirect URI: `http://127.0.0.1:8888/callback` (must match `.env` exactly)
-- Grab the Client ID and Client Secret
+- Add `http://127.0.0.1:8888/callback` as a Redirect URI. It has to match
+  `.env` character for character.
+- Copy the Client ID and Client Secret.
 
 ### 3. Configure
 
 ```bash
 cp .env.example .env
-# edit .env: fill in LASTFM_API_KEY, LASTFM_TARGET_USER,
+# fill in LASTFM_API_KEY, LASTFM_TARGET_USER,
 # SPOTIFY_CLIENT_ID, SPOTIFY_CLIENT_SECRET
 ```
 
-### 4. Install & authorize (once)
+### 4. Install and authorize
 
 ```bash
 npm install
 npm run auth
 ```
 
-This prints a URL — open it, log in with **your own** Spotify account (the
-one whose queue you want to control), approve access. It saves
-`tokens.json` with a refresh token. You only need to do this once (unless
-you revoke access).
+This prints a URL. Open it, log in with your own Spotify account, the one
+whose queue you want to control, and approve access. It saves a refresh
+token to `tokens.json`. You only do this once, unless you revoke access.
 
 ### 5. Run
 
@@ -62,20 +59,27 @@ you revoke access).
 npm start
 ```
 
-Leave it running. Open Spotify and start playing something (anything —
-the queue API needs an active device) so tracks have somewhere to land.
+Leave it running. Open Spotify and play something so queued tracks have
+somewhere to land.
 
-## Notes / limitations
+## Notes and limitations
 
-- **Spotify's queue endpoint needs an active device.** If Spotify isn't
-  open and playing on some device, queueing fails — the script logs a
-  skip rather than erroring out.
-- **Matching isn't perfect.** Live versions, alternate releases, and
-  obscure/unreleased tracks may not resolve correctly, or at all. Misses
-  are logged with the artist/title so you can see what got skipped.
-- **Rate limits as configured:** Last.fm polled at most once per
-  `POLL_INTERVAL_MS` (default 30s, per your ask); Spotify is only called
-  when Last.fm reports an actual new now-playing track, not on every poll.
-- **This is "queue once," not continuous mirroring.** It won't skip
-  ahead in your playback, remove things, or fight with your own queue —
-  it just appends the one matched track.
+**Queueing needs an active device.** Spotify's queue endpoint fails if
+nothing is playing anywhere. The script logs a skip instead of crashing,
+but tracks that come in while you aren't listening are gone. It won't go
+back for them.
+
+**Matching is best-effort, and it will get things wrong.** Live versions,
+alternate pressings, and anything obscure tend to resolve to something
+adjacent or to nothing at all. When the normalized artist and title don't
+match exactly, it falls back to Spotify's top search result, which is
+usually right and occasionally embarrassing. Every miss is logged with the
+artist and title so you can check what it did.
+
+**Request volume stays low.** Last.fm gets one call per `POLL_INTERVAL_MS`,
+30 seconds by default. Spotify is only called when the now-playing track
+changes, not on every poll.
+
+**Queue once, not continuous mirroring.** It appends one track and stops.
+It won't skip ahead, remove anything, or fight with the queue you built
+yourself.
