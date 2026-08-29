@@ -3,3 +3,7 @@ node_modules/
 tokens.json
 state.json
 *.log
+
+# Agent skills installed from skills-lock.json
+.agents/skills/
+.claude/skills/
