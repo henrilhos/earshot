@@ -1,0 +1,50 @@
+name: Release
+
+# Publishing is a tag away rather than a merge away, so main can move without
+# spending version numbers. Tag `v1.2.3` to publish 1.2.3.
+on:
+  push:
+    tags: ['v*']
+
+permissions:
+  contents: read
+
+jobs:
+  publish:
+    name: Publish packages/cli to npm
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      # Lets npm attach a provenance statement tying the tarball to this run.
+      id-token: write
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22.18'
+          cache: npm
+          registry-url: https://registry.npmjs.org
+
+      - run: npm ci
+
+      - run: npm run typecheck
+
+      - run: npm test
+
+      - run: npm run verify:deps
+
+      # The tag is the source of truth, so a mismatched manifest is a mistake
+      # worth catching before the version is spent.
+      - name: Check the tag matches packages/cli
+        run: |
+          tagged="${GITHUB_REF_NAME#v}"
+          declared=$(node -p "require('./packages/cli/package.json').version")
+          if [ "$tagged" != "$declared" ]; then
+            echo "Tag $GITHUB_REF_NAME does not match packages/cli version $declared."
+            exit 1
+          fi
+
+      - run: npm publish -w earshot --provenance
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
