@@ -1,0 +1,15 @@
+{
+  "name": "lastfm-spotify-sync",
+  "version": "1.0.0",
+  "description": "Mirror a Last.fm user's now-playing track into your Spotify queue, once per new track.",
+  "type": "module",
+  "main": "src/index.js",
+  "scripts": {
+    "auth": "node src/auth.js",
+    "start": "node src/index.js"
+  },
+  "dependencies": {
+    "dotenv": "^16.4.5",
+    "express": "^4.19.2"
+  }
+}
