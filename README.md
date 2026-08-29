@@ -20,8 +20,8 @@ won't touch your queue unless Spotify is already playing.
    the track with `POST /me/player/queue`.
 4. Otherwise it logs the reason and moves on. It never retries a track.
 
-It writes the last track it saw to `state.json`, so restarting won't
-re-queue whatever was playing when you stopped it.
+It writes the last track it saw to `state.json`, keyed by Last.fm user, so
+restarting won't re-queue whatever was playing when you stopped it.
 
 ## Setup
 
@@ -67,6 +67,18 @@ npm start -- their_lastfm_username
 
 The argument is the Last.fm account you're mirroring. Leave it running.
 Open Spotify and play something so queued tracks have somewhere to land.
+
+To mirror several people into the same queue, start one instance per
+account:
+
+```bash
+npm start -- first_username &
+npm start -- second_username &
+```
+
+They share `state.json` and keep one entry each, so they don't overwrite
+each other's progress. Two instances watching the *same* account won't
+queue the track twice either: whichever one records it first wins.
 
 To typecheck after changing something, `npm install` once for the dev
 dependencies, then `npm run typecheck`.

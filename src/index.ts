@@ -1,5 +1,5 @@
 import { numberEnv } from './env.ts';
-import { readJson, writeJson } from './json-file.ts';
+import { readJson, updateJson } from './json-file.ts';
 import { getNowPlaying } from './lastfm.ts';
 import { findTrack, hasActiveDevice, queueTrack } from './spotify.ts';
 
@@ -7,9 +7,14 @@ const POLL_INTERVAL_MS = numberEnv('POLL_INTERVAL_MS', 60_000);
 const STATE_FILE = 'state.json';
 const targetUser = requireTargetUser();
 
-type State = { lastKey: string | null };
+// Several instances share this file, one entry each, so the user being watched
+// has to be part of the state rather than implied by it.
+type State = { users: Record<string, string> };
 
-let state = readJson<State>(STATE_FILE) ?? { lastKey: null };
+// Files written before the users map still hold a bare { lastKey }.
+type StoredState = Partial<State> & { lastKey?: string | null };
+
+let lastKey = migrate(readJson<StoredState>(STATE_FILE)).users[targetUser] ?? null;
 
 function requireTargetUser(): string {
   const user = process.argv[2];
@@ -18,6 +23,30 @@ function requireTargetUser(): string {
     process.exit(1);
   }
   return user;
+}
+
+function migrate(stored: StoredState | null): State {
+  if (stored?.users) return { users: stored.users };
+  // A bare lastKey could only have belonged to the one user being watched.
+  if (stored?.lastKey) return { users: { [targetUser]: stored.lastKey } };
+  return { users: {} };
+}
+
+// The entry on disk is the authority, not our in-memory copy: another instance
+// may have written to the file since we last read it.
+async function claim(key: string): Promise<boolean> {
+  let claimed = false;
+
+  await updateJson<StoredState>(STATE_FILE, (stored) => {
+    const state = migrate(stored);
+    claimed = state.users[targetUser] !== key;
+    if (claimed) state.users[targetUser] = key;
+    return state;
+  });
+
+  // Whether we claimed it or someone else did, this track is now handled.
+  lastKey = key;
+  return claimed;
 }
 
 function log(message: string): void {
@@ -40,13 +69,18 @@ async function tick(): Promise<void> {
   if (!current) return;
 
   const key = `${current.artist}|||${current.title}`.toLowerCase();
-  if (key === state.lastKey) return;
-
-  // Record the track before acting on it, so a failure never causes a retry.
-  state = { lastKey: key };
-  writeJson(STATE_FILE, state);
+  if (key === lastKey) return;
 
   const track = `"${current.title}" by ${current.artist}`;
+
+  // Record the track before acting on it, so a failure never causes a retry.
+  try {
+    if (!(await claim(key))) return;
+  } catch (err) {
+    log(`Could not record ${track}, skipping it: ${reason(err)}`);
+    return;
+  }
+
   log(`New now-playing detected: ${track}`);
 
   try {
