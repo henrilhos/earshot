@@ -1,5 +1,5 @@
 {
-  "name": "lastfm-spotify-sync",
+  "name": "earshot",
   "version": "1.0.0",
   "description": "Mirror a Last.fm user's now-playing track into your Spotify queue, once per new track.",
   "keywords": [
@@ -18,11 +18,11 @@
     "nodejs",
     "cli"
   ],
-  "homepage": "https://github.com/henrilhos/lastfm-spotify-sync#readme",
-  "bugs": "https://github.com/henrilhos/lastfm-spotify-sync/issues",
+  "homepage": "https://github.com/henrilhos/earshot#readme",
+  "bugs": "https://github.com/henrilhos/earshot/issues",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/henrilhos/lastfm-spotify-sync.git"
+    "url": "git+https://github.com/henrilhos/earshot.git"
   },
   "license": "MIT",
   "author": "Henrique de Castilhos",
