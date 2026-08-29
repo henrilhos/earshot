@@ -1,5 +1,9 @@
 # lastfm-spotify-sync
 
+[![CI](https://github.com/henrilhos/lastfm-spotify-sync/actions/workflows/ci.yml/badge.svg)](https://github.com/henrilhos/lastfm-spotify-sync/actions/workflows/ci.yml)
+[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
+[![Node](https://img.shields.io/badge/node-%3E%3D22.18-brightgreen.svg)](https://nodejs.org)
+
 Watches someone else's Last.fm "now playing" and adds each new track to the
 end of your Spotify queue. Once per track. It only ever appends, and it
 won't touch your queue unless Spotify is already playing.
@@ -88,3 +92,7 @@ changes, not on every poll.
 **Queue once, not continuous mirroring.** It appends one track and stops.
 It won't skip ahead, remove anything, or fight with the queue you built
 yourself.
+
+## License
+
+[MIT](LICENSE)

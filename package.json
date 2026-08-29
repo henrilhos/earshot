@@ -2,6 +2,30 @@
   "name": "lastfm-spotify-sync",
   "version": "1.0.0",
   "description": "Mirror a Last.fm user's now-playing track into your Spotify queue, once per new track.",
+  "keywords": [
+    "lastfm",
+    "last-fm",
+    "lastfm-api",
+    "spotify",
+    "spotify-api",
+    "spotify-queue",
+    "now-playing",
+    "nowplaying",
+    "scrobble",
+    "scrobbler",
+    "music",
+    "typescript",
+    "nodejs",
+    "cli"
+  ],
+  "homepage": "https://github.com/henrilhos/lastfm-spotify-sync#readme",
+  "bugs": "https://github.com/henrilhos/lastfm-spotify-sync/issues",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/henrilhos/lastfm-spotify-sync.git"
+  },
+  "license": "MIT",
+  "author": "Henrique de Castilhos",
   "type": "module",
   "main": "src/index.ts",
   "engines": {
