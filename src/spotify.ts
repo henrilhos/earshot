@@ -110,8 +110,13 @@ function normalize(str: string): string {
 // The fallback to the top result is deliberate: Spotify's own relevance
 // ranking is usually better than nothing when nothing matches exactly.
 export async function findTrack(artist: string, title: string): Promise<SpotifyTrack | null> {
+  const wantTitle = normalize(title);
+  const wantArtist = normalize(artist);
+
+  // Search on the normalized terms too, since Spotify has no track called
+  // "Me and Your Mama - Remastered". Titles like "!!!" normalize to nothing.
   const query = new URLSearchParams({
-    q: `track:${title} artist:${artist}`,
+    q: `track:${wantTitle || title} artist:${wantArtist || artist}`,
     type: 'track',
     limit: '10',
   });
@@ -121,8 +126,6 @@ export async function findTrack(artist: string, title: string): Promise<SpotifyT
   if (!res.ok) throw new Error(`Spotify search failed: ${JSON.stringify(data)}`);
 
   const candidates = data.tracks?.items ?? [];
-  const wantTitle = normalize(title);
-  const wantArtist = normalize(artist);
 
   const exact = candidates.find(
     (track) =>

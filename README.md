@@ -9,9 +9,9 @@ won't touch your queue unless Spotify is already playing.
 1. Every 30 seconds (configurable), it calls `user.getRecentTracks` for the
    target user. Last.fm needs an API key but no OAuth, since recent tracks
    are public.
-2. When the `nowplaying` track changes, it searches Spotify by artist and
-   title. The search strips noise like "- Remastered 2011" and "(feat. X)"
-   before comparing.
+2. When the `nowplaying` track changes, it strips noise like
+   "- Remastered 2011" and "(feat. X)" off the artist and title, searches
+   Spotify with what's left, and compares the results the same way.
 3. If it finds a match and you have an active playback session, it queues
    the track with `POST /me/player/queue`.
 4. Otherwise it logs the reason and moves on. It never retries a track.
