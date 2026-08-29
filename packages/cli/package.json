@@ -41,6 +41,7 @@
   "scripts": {
     "auth": "node src/auth.ts",
     "start": "node src/index.ts",
+    "test": "node --test \"src/**/*.test.ts\"",
     "build": "tsc --project tsconfig.build.json",
     "prepack": "node ../../scripts/vendor-core.js vendor && npm run build",
     "postpack": "node ../../scripts/vendor-core.js link"
