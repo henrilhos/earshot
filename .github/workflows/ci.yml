@@ -63,8 +63,58 @@ jobs:
       # typecheck accepts but the runtime refuses.
       - name: Check the entry points are erasable
         run: |
-          node --check src/index.ts
-          node --check src/auth.ts
+          node --check packages/cli/src/cli.ts
+          node --check packages/cli/src/index.ts
+          node --check packages/cli/src/auth.ts
 
       # packages/core has to load on workerd too, where none of this exists.
       - run: npm run verify:core
+
+      # apps/web's dependency tree must not reach the CLI.
+      - run: npm run verify:deps
+
+  package:
+    name: The published CLI runs
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22.18'
+          cache: npm
+
+      - run: npm ci
+
+      # packages/core travels inside the tarball rather than beside it, and
+      # nothing in the checkout notices when that stops working.
+      - name: Pack the CLI
+        run: npm pack -w earshot --pack-destination "$RUNNER_TEMP"
+
+      - name: Install it somewhere clean and run it
+        working-directory: ${{ runner.temp }}
+        run: |
+          mkdir install && cd install
+          npm init -y > /dev/null
+          npm install ../earshot-*.tgz
+          npx earshot --help
+
+      - name: Check it brought no dependency tree
+        working-directory: ${{ runner.temp }}/install
+        run: |
+          installed=$(ls node_modules | grep -v '^\.' | tr '\n' ' ')
+          if [ "$installed" != "earshot " ]; then
+            echo "The CLI pulled in more than itself: $installed"
+            exit 1
+          fi
+
+      # The pack hooks rewrite packages/cli/core on the way through. If they
+      # leave it rewritten, the next person to build gets a stale copy.
+      - name: Check the checkout was left as it was found
+        run: |
+          dirty=$(git status --porcelain)
+          if [ -n "$dirty" ]; then
+            echo "$dirty"
+            echo 'The pack hooks left the checkout modified.'
+            exit 1
+          fi

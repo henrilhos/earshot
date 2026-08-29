@@ -1,5 +1,5 @@
 import { existsSync } from 'node:fs';
-import type { SpotifyApp } from '../packages/core/index.ts';
+import type { SpotifyApp } from '../core/index.ts';
 
 export type Config = {
   lastfmApiKey: string;

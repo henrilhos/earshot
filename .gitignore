@@ -9,3 +9,6 @@ state.json.lock/
 # Agent skills installed from skills-lock.json
 .agents/skills/
 .claude/skills/
+
+# Emitted for the npm tarball by packages/cli prepack.
+dist/

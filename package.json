@@ -1,23 +1,7 @@
 {
-  "name": "earshot",
+  "name": "earshot-workspace",
   "version": "1.0.0",
-  "description": "Mirror a Last.fm user's now-playing track into your Spotify queue, once per new track.",
-  "keywords": [
-    "lastfm",
-    "last-fm",
-    "lastfm-api",
-    "spotify",
-    "spotify-api",
-    "spotify-queue",
-    "now-playing",
-    "nowplaying",
-    "scrobble",
-    "scrobbler",
-    "music",
-    "typescript",
-    "nodejs",
-    "cli"
-  ],
+  "description": "Workspace root. The published package is packages/cli.",
   "homepage": "https://github.com/henrilhos/earshot#readme",
   "bugs": "https://github.com/henrilhos/earshot/issues",
   "repository": {
@@ -26,17 +10,22 @@
   },
   "license": "MIT",
   "author": "Henrique de Castilhos",
+  "private": true,
   "type": "module",
-  "main": "src/index.ts",
+  "workspaces": [
+    "packages/*",
+    "apps/*"
+  ],
   "engines": {
     "node": ">=22.18"
   },
   "scripts": {
-    "auth": "node src/auth.ts",
-    "start": "node src/index.ts",
+    "auth": "node packages/cli/src/auth.ts",
+    "start": "node packages/cli/src/index.ts",
     "typecheck": "tsc",
-    "test": "node --test \"packages/**/*.test.ts\"",
-    "verify:core": "node scripts/verify-core.js"
+    "test": "npm run test --workspaces --if-present",
+    "verify:core": "node scripts/verify-core.js",
+    "verify:deps": "node scripts/verify-deps.js"
   },
   "devDependencies": {
     "@types/node": "^24.3.0",

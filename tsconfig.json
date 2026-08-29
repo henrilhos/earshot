@@ -20,5 +20,7 @@
 
     "skipLibCheck": true
   },
-  "include": ["src", "packages"]
+  "include": ["packages", "apps"],
+  // packages/cli/core is a symlink to packages/core, already covered above.
+  "exclude": ["packages/cli/core"]
 }

@@ -1,4 +1,4 @@
-import type { SpotifyTokens } from '../packages/core/index.ts';
+import type { SpotifyTokens } from '../core/index.ts';
 import { readJson, writeJson } from './json-file.ts';
 
 const TOKENS_FILE = 'tokens.json';
@@ -9,7 +9,7 @@ const TOKENS_FILE = 'tokens.json';
 export function readTokens(): SpotifyTokens {
   const tokens = readJson<SpotifyTokens>(TOKENS_FILE);
   if (!tokens?.refresh_token) {
-    throw new Error('No usable tokens.json. Run `npm run auth` first.');
+    throw new Error('No usable tokens.json. Run `earshot auth` first.');
   }
   return tokens;
 }
