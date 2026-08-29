@@ -3,7 +3,7 @@ import { readJson, writeJson } from './json-file.ts';
 import { getNowPlaying } from './lastfm.ts';
 import { findTrack, hasActiveDevice, queueTrack } from './spotify.ts';
 
-const POLL_INTERVAL_MS = numberEnv('POLL_INTERVAL_MS', 30_000);
+const POLL_INTERVAL_MS = numberEnv('POLL_INTERVAL_MS', 60_000);
 const STATE_FILE = 'state.json';
 const targetUser = requireTargetUser();
 

@@ -10,7 +10,7 @@ won't touch your queue unless Spotify is already playing.
 
 ## How it works
 
-1. Every 30 seconds (configurable), it calls `user.getRecentTracks` for the
+1. Every 60 seconds (configurable), it calls `user.getRecentTracks` for the
    target user. Last.fm needs an API key but no OAuth, since recent tracks
    are public.
 2. When the `nowplaying` track changes, it strips noise like
@@ -86,7 +86,7 @@ usually right and occasionally embarrassing. Every miss is logged with the
 artist and title so you can check what it did.
 
 **Request volume stays low.** Last.fm gets one call per `POLL_INTERVAL_MS`,
-30 seconds by default. Spotify is only called when the now-playing track
+60 seconds by default. Spotify is only called when the now-playing track
 changes, not on every poll.
 
 **Queue once, not continuous mirroring.** It appends one track and stops.
