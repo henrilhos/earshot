@@ -2,6 +2,8 @@ node_modules/
 .env
 tokens.json
 state.json
+state.json.lock/
+*.tmp
 *.log
 
 # Agent skills installed from skills-lock.json
