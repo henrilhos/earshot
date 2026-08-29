@@ -13,3 +13,7 @@ The five canonical roles, using their default names. See `docs/agents/triage-lab
 ### Domain docs
 
 Single-context: one `CONTEXT.md` and `docs/adr/` at the repo root. See `docs/agents/domain.md`.
+
+### Deslop
+
+Before opening a PR or pushing a branch to `origin`, run `/deslop`.
