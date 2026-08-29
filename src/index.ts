@@ -1,14 +1,24 @@
 import { numberEnv } from './env.ts';
 import { readJson, writeJson } from './json-file.ts';
-import { getNowPlaying, targetUser } from './lastfm.ts';
+import { getNowPlaying } from './lastfm.ts';
 import { findTrack, hasActiveDevice, queueTrack } from './spotify.ts';
 
 const POLL_INTERVAL_MS = numberEnv('POLL_INTERVAL_MS', 30_000);
 const STATE_FILE = 'state.json';
+const targetUser = requireTargetUser();
 
 type State = { lastKey: string | null };
 
 let state = readJson<State>(STATE_FILE) ?? { lastKey: null };
+
+function requireTargetUser(): string {
+  const user = process.argv[2];
+  if (!user) {
+    console.error('Usage: npm start -- <lastfm-username>');
+    process.exit(1);
+  }
+  return user;
+}
 
 function log(message: string): void {
   console.log(`[${new Date().toISOString()}] ${message}`);
@@ -21,7 +31,7 @@ function reason(err: unknown): string {
 async function tick(): Promise<void> {
   let current;
   try {
-    current = await getNowPlaying();
+    current = await getNowPlaying(targetUser);
   } catch (err) {
     log(`Last.fm poll failed: ${reason(err)}`);
     return;

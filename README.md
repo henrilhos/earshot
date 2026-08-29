@@ -42,8 +42,7 @@ Create one at https://developer.spotify.com/dashboard.
 
 ```bash
 cp .env.example .env
-# fill in LASTFM_API_KEY, LASTFM_TARGET_USER,
-# SPOTIFY_CLIENT_ID, SPOTIFY_CLIENT_SECRET
+# fill in LASTFM_API_KEY, SPOTIFY_CLIENT_ID, SPOTIFY_CLIENT_SECRET
 ```
 
 ### 4. Authorize
@@ -59,11 +58,11 @@ token to `tokens.json`. You only do this once, unless you revoke access.
 ### 5. Run
 
 ```bash
-npm start
+npm start -- their_lastfm_username
 ```
 
-Leave it running. Open Spotify and play something so queued tracks have
-somewhere to land.
+The argument is the Last.fm account you're mirroring. Leave it running.
+Open Spotify and play something so queued tracks have somewhere to land.
 
 To typecheck after changing something, `npm install` once for the dev
 dependencies, then `npm run typecheck`.

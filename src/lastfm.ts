@@ -2,8 +2,6 @@ import { requireEnv } from './env.ts';
 
 const API_KEY = requireEnv('LASTFM_API_KEY');
 
-export const targetUser = requireEnv('LASTFM_TARGET_USER');
-
 export type NowPlaying = {
   artist: string;
   title: string;
@@ -20,10 +18,10 @@ type RecentTracks = {
 };
 
 // Recent tracks are public, so this needs an API key but no OAuth.
-export async function getNowPlaying(): Promise<NowPlaying | null> {
+export async function getNowPlaying(user: string): Promise<NowPlaying | null> {
   const query = new URLSearchParams({
     method: 'user.getrecenttracks',
-    user: targetUser,
+    user,
     api_key: API_KEY,
     format: 'json',
     limit: '1',
