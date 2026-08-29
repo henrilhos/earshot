@@ -1,0 +1,8 @@
+{
+  "name": "@earshot/worker",
+  "version": "0.0.0",
+  "description": "The Instance. API, static assets, and the scheduled tick on Cloudflare Workers.",
+  "license": "MIT",
+  "private": true,
+  "type": "module"
+}

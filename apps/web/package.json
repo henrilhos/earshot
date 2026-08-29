@@ -1,0 +1,8 @@
+{
+  "name": "@earshot/web",
+  "version": "0.0.0",
+  "description": "The SPA. Vite + React, served by the Worker through Static Assets.",
+  "license": "MIT",
+  "private": true,
+  "type": "module"
+}

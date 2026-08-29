@@ -1,0 +1,20 @@
+{
+  "name": "@earshot/core",
+  "version": "1.0.0",
+  "description": "Runtime-agnostic sync core. Runs on Node and workerd alike.",
+  "license": "MIT",
+  "author": "Henrique de Castilhos",
+  "private": true,
+  "type": "module",
+  "main": "index.ts",
+  "exports": {
+    ".": "./index.ts"
+  },
+  "engines": {
+    "node": ">=22.18"
+  },
+  "scripts": {
+    "test": "node --test \"*.test.ts\""
+  },
+  "dependencies": {}
+}

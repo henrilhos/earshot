@@ -6,7 +6,7 @@ import {
   spotifyApi,
   type SyncDeps,
   tick,
-} from '../packages/core/index.ts';
+} from '../core/index.ts';
 import { loadConfig } from './config.ts';
 import { fail, loadOrFail } from './fail.ts';
 import { trackClaims } from './state.ts';
@@ -14,7 +14,7 @@ import { readTokens, saveTokens } from './tokens.ts';
 
 const STATE_FILE = 'state.json';
 
-const watchedAccount = process.argv[2] || fail('Usage: npm start -- <lastfm-username>');
+const watchedAccount = process.argv[2] || fail('Which Last.fm account? Usage: earshot <lastfm-username>');
 
 const config = loadOrFail(loadConfig);
 

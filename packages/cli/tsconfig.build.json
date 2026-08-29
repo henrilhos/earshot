@@ -1,0 +1,17 @@
+{
+  // Type stripping is refused for anything under node_modules, so the tarball
+  // carries JavaScript even though the checkout runs the TypeScript directly.
+  // This emits; the root config only checks.
+  "extends": "../../tsconfig.json",
+  "compilerOptions": {
+    "noEmit": false,
+    "rootDir": ".",
+    "outDir": "dist",
+    // Turns the './x.ts' specifiers Node needs in the checkout into the
+    // './x.js' the emitted files need.
+    "rewriteRelativeImportExtensions": true
+  },
+  // core is a real directory by the time this runs; prepack vendors it first.
+  "include": ["src", "core"],
+  "exclude": []
+}

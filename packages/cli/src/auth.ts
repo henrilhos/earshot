@@ -1,8 +1,8 @@
-// One-time setup. Run `npm run auth`, open the printed URL, approve access on
-// Spotify, and this saves tokens.json with the refresh token that src/index.ts
+// One-time setup. Run `earshot auth`, open the printed URL, approve
+// access on Spotify, and this saves tokens.json with the refresh token the sync
 // uses from then on (until you revoke it).
 import { createServer } from 'node:http';
-import { authorizeUrl, exchangeCode } from '../packages/core/index.ts';
+import { authorizeUrl, exchangeCode } from '../core/index.ts';
 import { loadSpotifyApp } from './config.ts';
 import { loadOrFail } from './fail.ts';
 import { saveTokens } from './tokens.ts';
@@ -29,7 +29,7 @@ const server = createServer(async (req, res) => {
 
     saveTokens(await exchangeCode(app, code));
     res.writeHead(200).end('Success! You can close this tab and go back to the terminal.');
-    console.log('\nSaved tokens.json. Run `npm start`.\n');
+    console.log('\nSaved tokens.json. Now run `earshot <lastfm-username>`.\n');
   } catch (err) {
     failed = true;
     res.writeHead(500).end('Authorization failed. Check the terminal.');

@@ -1,4 +1,4 @@
-import { reason } from '../packages/core/index.ts';
+import { reason } from '../core/index.ts';
 
 // Only the entry points exit; everything below them throws instead, so the
 // same code can run inside a server that has other Queue Owners to serve.
