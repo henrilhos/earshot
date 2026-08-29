@@ -13,5 +13,6 @@
   },
   // core is a real directory by the time this runs; prepack vendors it first.
   "include": ["src", "core"],
-  "exclude": []
+  // Nothing that installs the CLI runs its tests, so they stay out of dist.
+  "exclude": ["src/**/*.test.ts"]
 }
