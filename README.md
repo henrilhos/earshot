@@ -25,9 +25,7 @@ restarting won't re-queue whatever was playing when you stopped it.
 
 ## Setup
 
-Needs Node 22.18 or newer. The source is TypeScript, and Node runs it
-directly by stripping the types, so there is no build step and nothing to
-install to run it.
+Needs Node 22.18 or newer.
 
 ### 1. Last.fm API key
 
@@ -44,15 +42,23 @@ Create one at https://developer.spotify.com/dashboard.
 
 ### 3. Configure
 
+It reads a `.env` from the directory you run it in, or the variables
+straight out of the environment.
+
 ```bash
-cp .env.example .env
-# fill in LASTFM_API_KEY, SPOTIFY_CLIENT_ID, SPOTIFY_CLIENT_SECRET
+LASTFM_API_KEY=...
+SPOTIFY_CLIENT_ID=...
+SPOTIFY_CLIENT_SECRET=...
+SPOTIFY_REDIRECT_URI=http://127.0.0.1:8888/callback
+POLL_INTERVAL_MS=60000   # optional
 ```
+
+From a clone, `cp .env.example .env` gets you the same file with comments.
 
 ### 4. Authorize
 
 ```bash
-npm run auth
+npx earshot auth
 ```
 
 This prints a URL. Open it, log in with your own Spotify account, the one
@@ -62,7 +68,7 @@ token to `tokens.json`. You only do this once, unless you revoke access.
 ### 5. Run
 
 ```bash
-npm start -- their_lastfm_username
+npx earshot their_lastfm_username
 ```
 
 The argument is the Last.fm account you're mirroring. Leave it running.
@@ -72,16 +78,13 @@ To mirror several people into the same queue, start one instance per
 account:
 
 ```bash
-npm start -- first_username &
-npm start -- second_username &
+npx earshot first_username &
+npx earshot second_username &
 ```
 
 They share `state.json` and keep one entry each, so they don't overwrite
 each other's progress. Two instances watching the *same* account won't
 queue the track twice either: whichever one records it first wins.
-
-To check your changes, `npm install` once for the dev dependencies, then
-`npm run typecheck` and `npm test`.
 
 ## Notes and limitations
 
@@ -104,6 +107,50 @@ changes, not on every poll.
 **Queue once, not continuous mirroring.** It appends one track and stops.
 It won't skip ahead, remove anything, or fight with the queue you built
 yourself.
+
+## Working on it
+
+```
+packages/core    the sync itself: zero dependencies, no build, runs on Node
+                 and workerd alike, all of it checked in CI
+packages/cli     what npm publishes, zero dependencies, no build
+apps/web         the SPA, with its own dependency tree     (not built yet)
+apps/worker      the hosted Instance                       (not built yet)
+```
+
+`packages/core` and `packages/cli` declare no dependencies, and `npm run
+verify:deps` fails the build if either grows one. That is the whole point of
+the split: `apps/web` brings a bundler and a few hundred packages, and none of
+it may reach the thing people install with `npx`.
+
+Clone it and it runs with nothing installed, because Node executes the
+TypeScript directly:
+
+```bash
+npm run auth
+npm start -- their_lastfm_username
+```
+
+`npm install` once gets you the two dev dependencies behind `npm run
+typecheck`. `npm test` needs nothing.
+
+The npm tarball is the exception. Node refuses to strip types under
+`node_modules`, so `packages/cli` compiles to JavaScript on `prepack`, which
+also copies `packages/core` in beside it — the published package cannot
+depend on a sibling it has no dependency on. `npm pack -w earshot` does both
+and puts the checkout back afterwards.
+
+## Releasing
+
+Bump `version` in `packages/cli/package.json`, then push a matching tag:
+
+```bash
+git tag v1.0.1 && git push origin v1.0.1
+```
+
+`.github/workflows/release.yml` typechecks, tests, checks the tag against the
+manifest, and publishes with provenance. It needs an `NPM_TOKEN` secret with
+publish rights.
 
 ## License
 
