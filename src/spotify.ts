@@ -24,8 +24,6 @@ type Tokens = {
   expires_in: number;
 };
 
-// The authorization-code exchange and the refresh both post to the same
-// endpoint with the same client credentials; only the grant differs.
 async function requestTokens(grant: Record<string, string>): Promise<Tokens> {
   const res = await fetch('https://accounts.spotify.com/api/token', {
     method: 'POST',
@@ -94,8 +92,8 @@ async function api(path: string, init: RequestInit = {}): Promise<Response> {
   });
 }
 
-// Lowercase and strip the noise that keeps otherwise identical titles from
-// comparing equal: "(Remastered 2011)", "- Live", feat. credits, punctuation.
+// Strips the noise that keeps otherwise identical titles from comparing
+// equal: "(Remastered 2011)", "- Live", feat. credits, punctuation.
 export function normalize(str: string): string {
   return str
     .toLowerCase()
@@ -109,8 +107,8 @@ export function normalize(str: string): string {
     .trim();
 }
 
-// Prefer an exact (normalized) artist + title match, and fall back to the top
-// search result, since Spotify's own relevance ranking is usually decent.
+// The fallback to the top result is deliberate: Spotify's own relevance
+// ranking is usually better than nothing when nothing matches exactly.
 export async function findTrack(artist: string, title: string): Promise<SpotifyTrack | null> {
   const query = new URLSearchParams({
     q: `track:${title} artist:${artist}`,

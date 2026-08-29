@@ -27,10 +27,10 @@ async function tick(): Promise<void> {
     return;
   }
 
-  if (!current) return; // Target user isn't playing anything right now.
+  if (!current) return;
 
   const key = `${current.artist}|||${current.title}`.toLowerCase();
-  if (key === state.lastKey) return; // Same track as last poll, already handled.
+  if (key === state.lastKey) return;
 
   // Record the track before acting on it, so a failure never causes a retry.
   state = { lastKey: key };

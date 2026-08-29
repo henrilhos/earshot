@@ -19,9 +19,7 @@ type RecentTracks = {
   };
 };
 
-// The target user's currently playing track, or null when they aren't
-// listening to anything. Recent tracks are public, so this needs an API key
-// but no OAuth.
+// Recent tracks are public, so this needs an API key but no OAuth.
 export async function getNowPlaying(): Promise<NowPlaying | null> {
   const query = new URLSearchParams({
     method: 'user.getrecenttracks',
