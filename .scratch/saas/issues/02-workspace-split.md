@@ -10,7 +10,7 @@ dependency tree, and neither may leak into the CLI.
 
 - `packages/core` and `packages/cli` keep an empty `dependencies` block, checked
   in CI so it is enforced rather than intended.
-- Add a `bin` entry to `packages/cli` so `npx lastfm-spotify-sync` works. The
+- Add a `bin` entry to `packages/cli` so `npx earshot` works. The
   package currently has `main: src/index.ts` and no `bin`, so it is not
   runnable as a CLI at all.
 - Publish `packages/cli` to npm.

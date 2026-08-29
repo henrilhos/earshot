@@ -1,4 +1,4 @@
-# lastfm-spotify-sync
+# earshot
 
 Mirrors what other people are listening to on Last.fm into a Spotify queue,
 once per new track.

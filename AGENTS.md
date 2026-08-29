@@ -1,4 +1,4 @@
-# lastfm-spotify-sync
+# earshot
 
 ## Agent skills
 

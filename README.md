@@ -1,6 +1,6 @@
-# lastfm-spotify-sync
+# earshot
 
-[![CI](https://github.com/henrilhos/lastfm-spotify-sync/actions/workflows/ci.yml/badge.svg)](https://github.com/henrilhos/lastfm-spotify-sync/actions/workflows/ci.yml)
+[![CI](https://github.com/henrilhos/earshot/actions/workflows/ci.yml/badge.svg)](https://github.com/henrilhos/earshot/actions/workflows/ci.yml)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 [![Node](https://img.shields.io/badge/node-%3E%3D22.18-brightgreen.svg)](https://nodejs.org)
 
