@@ -66,8 +66,8 @@ test('throws when Spotify rejects the code', async (t) => {
   await assert.rejects(exchangeCode(APP, 'stale'), /invalid_grant/);
 });
 
-function tokenHarness(stored: SpotifyTokens | null, refreshed: Partial<SpotifyTokens> = {}) {
-  const saved: SpotifyTokens[] = [];
+function tokenHarness(stored: string | null, refreshed: Partial<SpotifyTokens> = {}) {
+  const saved: string[] = [];
   const requests: { url: string; init: RequestInit }[] = [];
 
   const fetchStub = async (url: string, init: RequestInit = {}) => {
@@ -80,9 +80,9 @@ function tokenHarness(stored: SpotifyTokens | null, refreshed: Partial<SpotifyTo
 
   const api = spotifyApi({
     app: APP,
-    readTokens: () => stored,
-    saveTokens: (tokens) => {
-      saved.push(tokens);
+    readRefreshToken: () => stored,
+    saveRefreshToken: (refreshToken) => {
+      saved.push(refreshToken);
     },
   });
 
@@ -90,11 +90,7 @@ function tokenHarness(stored: SpotifyTokens | null, refreshed: Partial<SpotifyTo
 }
 
 test('authorizes calls with an access token refreshed on demand', async (t) => {
-  const { api, requests, fetchStub } = tokenHarness({
-    access_token: 'stale',
-    refresh_token: 'refresh',
-    expires_in: 3600,
-  });
+  const { api, requests, fetchStub } = tokenHarness('refresh');
   t.mock.method(globalThis, 'fetch', fetchStub);
 
   await api('/me/player');
@@ -106,11 +102,7 @@ test('authorizes calls with an access token refreshed on demand', async (t) => {
 });
 
 test('reuses the access token across calls until it nears expiry', async (t) => {
-  const { api, requests, fetchStub } = tokenHarness({
-    access_token: 'stale',
-    refresh_token: 'refresh',
-    expires_in: 3600,
-  });
+  const { api, requests, fetchStub } = tokenHarness('refresh');
   t.mock.method(globalThis, 'fetch', fetchStub);
 
   await api('/me/player');
@@ -121,19 +113,16 @@ test('reuses the access token across calls until it nears expiry', async (t) => 
 });
 
 test('persists a refresh token Spotify rotated', async (t) => {
-  const { api, saved, fetchStub } = tokenHarness(
-    { access_token: 'stale', refresh_token: 'old', expires_in: 3600 },
-    { refresh_token: 'rotated' },
-  );
+  const { api, saved, fetchStub } = tokenHarness('old', { refresh_token: 'rotated' });
   t.mock.method(globalThis, 'fetch', fetchStub);
 
   await api('/me/player');
 
-  assert.equal(saved.at(-1)?.refresh_token, 'rotated');
+  assert.equal(saved.at(-1), 'rotated');
 });
 
 test('refuses to call Spotify without an authorization to refresh', async () => {
-  const api = spotifyApi({ app: APP, readTokens: () => null, saveTokens: () => {} });
+  const api = spotifyApi({ app: APP, readRefreshToken: () => null, saveRefreshToken: () => {} });
 
   await assert.rejects(api('/me/player'), /No stored Spotify authorization/);
 });
@@ -151,13 +140,13 @@ test('holds one identity per client, not one per process', async (t) => {
 
   const first = spotifyApi({
     app: APP,
-    readTokens: () => ({ access_token: 'a', refresh_token: 'first-owner', expires_in: 3600 }),
-    saveTokens: () => {},
+    readRefreshToken: () => 'first-owner',
+    saveRefreshToken: () => {},
   });
   const second = spotifyApi({
     app: APP,
-    readTokens: () => ({ access_token: 'b', refresh_token: 'second-owner', expires_in: 3600 }),
-    saveTokens: () => {},
+    readRefreshToken: () => 'second-owner',
+    saveRefreshToken: () => {},
   });
 
   await first('/me/player');
