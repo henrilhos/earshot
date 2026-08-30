@@ -3,6 +3,7 @@ import { test, type TestContext } from 'node:test';
 
 import {
   addSubscription,
+  claimDueAccounts,
   claimNowPlaying,
   createCliToken,
   type Delivery,
@@ -142,6 +143,50 @@ test('claims nothing for an account nobody watches', async (t) => {
   const db = await database(t);
 
   assert.equal(await claimNowPlaying(db, 'someone', 'kendrick lamar|||alright'), false);
+});
+
+test('claims only the Watched Accounts that are due', async (t) => {
+  const db = await database(t);
+  await watchAccount(db, { lastfmUsername: 'due', nextPollAt: 1_000 });
+  await watchAccount(db, { lastfmUsername: 'exactly-due', nextPollAt: 2_000 });
+  await watchAccount(db, { lastfmUsername: 'later', nextPollAt: 2_001 });
+
+  const claimed = await claimDueAccounts(db, { now: 2_000, nextPollAt: 62_000 });
+
+  assert.deepEqual(
+    claimed.map((watched) => watched.lastfmUsername),
+    ['due', 'exactly-due'],
+  );
+  assert.equal((await getWatchedAccount(db, 'later'))?.nextPollAt, 2_001);
+});
+
+test('stamps the next poll in the same statement that claims the account', async (t) => {
+  const db = await database(t);
+  await watchAccount(db, { lastfmUsername: 'someone', nextPollAt: 0 });
+  await claimNowPlaying(db, 'someone', 'kendrick lamar|||alright');
+
+  const [claimed] = await claimDueAccounts(db, { now: 2_000, nextPollAt: 62_000 });
+
+  // The last-seen key is what the poll needs, and the schedule has already
+  // moved on without waiting to hear how the poll went.
+  assert.deepEqual(claimed, {
+    lastfmUsername: 'someone',
+    lastNowPlayingKey: 'kendrick lamar|||alright',
+    nextPollAt: 62_000,
+  });
+});
+
+// The Cron Trigger and POST /api/tick can overlap, and two ticks that both
+// acted on one Watched Account would queue the same track twice.
+test('lets exactly one overlapping tick claim a due Watched Account', async (t) => {
+  const db = await database(t);
+  await watchAccount(db, { lastfmUsername: 'someone', nextPollAt: 0 });
+
+  const first = await claimDueAccounts(db, { now: 2_000, nextPollAt: 62_000 });
+  const second = await claimDueAccounts(db, { now: 2_000, nextPollAt: 62_000 });
+
+  assert.equal(first.length, 1);
+  assert.deepEqual(second, []);
 });
 
 test('fans one Watched Account out to every subscriber', async (t) => {

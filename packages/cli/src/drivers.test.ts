@@ -3,6 +3,7 @@ import { test } from 'node:test';
 
 import {
   addSubscription,
+  claimDueAccounts,
   claimNowPlaying,
   createCliToken,
   type Db,
@@ -75,6 +76,7 @@ async function everything(db: Db): Promise<void> {
   await watchAccount(db, { lastfmUsername: 'someone', nextPollAt: 0 });
   await addSubscription(db, 'queue-owner', 'someone');
   await claimNowPlaying(db, 'someone', 'kendrick lamar|||alright');
+  await claimDueAccounts(db, { now: 1, nextPollAt: 60_001 });
   await listSubscribers(db, 'someone');
   await recordDelivery(db, {
     queueOwnerId: 'queue-owner',

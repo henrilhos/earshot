@@ -141,7 +141,7 @@ packages/core    the sync itself: zero dependencies, no build, runs on Node
                  and workerd alike, all of it checked in CI
 packages/cli     what npm publishes, zero dependencies, no build
 apps/web         the SPA, with its own dependency tree     (not built yet)
-apps/worker      the hosted Instance                       (not built yet)
+apps/worker      the hosted Instance                       (the tick only)
 ```
 
 `packages/core` and `packages/cli` declare no dependencies, and `npm run
