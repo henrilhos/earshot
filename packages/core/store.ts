@@ -185,6 +185,28 @@ export async function claimNowPlaying(db: Db, lastfmUsername: string, key: strin
   return changed > 0;
 }
 
+// The schedule, claimed. Selecting what is due and stamping its next poll are
+// one statement, so two ticks that overlap cannot both act on the same Watched
+// Account: SQLite serializes the writes, and by the time the loser's UPDATE
+// runs its WHERE no longer matches. Whoever gets the row polls it; whoever
+// gets nothing had nothing to do.
+//
+// The stamp lands before the poll rather than after it, so an account whose
+// poll throws waits its interval like everything else instead of being
+// retried at every tick until it stops throwing.
+export async function claimDueAccounts(
+  db: Db,
+  schedule: { now: number; nextPollAt: number },
+): Promise<WatchedAccount[]> {
+  const rows = await db.all(
+    `UPDATE watched_account SET next_poll_at = ?
+     WHERE next_poll_at <= ?
+     RETURNING *`,
+    [schedule.nextPollAt, schedule.now],
+  );
+  return rows.map(toWatchedAccount);
+}
+
 // A Watched Account nobody subscribes to is no longer worth polling.
 export async function forgetUnwatchedAccounts(db: Db): Promise<void> {
   await db.run(

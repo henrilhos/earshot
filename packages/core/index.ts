@@ -5,6 +5,7 @@ export { type Db, type Row, type SqlValue } from './db.ts';
 export { type D1Binding, d1Db, type D1Statement } from './d1.ts';
 export { getNowPlaying, type NowPlaying } from './lastfm.ts';
 export { migrate, SCHEMA } from './schema.ts';
+export { runTick, type SchedulerDeps, type TickResult } from './scheduler.ts';
 export {
   authorizeUrl,
   exchangeCode,
@@ -20,6 +21,7 @@ export {
 } from './spotify.ts';
 export {
   addSubscription,
+  claimDueAccounts,
   claimNowPlaying,
   type CliToken,
   createCliToken,
