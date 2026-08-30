@@ -1,6 +1,7 @@
 import { readFileSync } from 'node:fs';
 import {
   addSubscription,
+  type Cipher,
   claimNowPlaying,
   type Db,
   getWatchedAccount,
@@ -39,6 +40,7 @@ function lastSeen(stored: StoredState | null, watchedAccount: string): Record<st
 
 export async function importJsonFiles(
   db: Db,
+  cipher: Cipher,
   options: { watchedAccount: string; stateFile?: string; tokensFile?: string },
 ): Promise<Imported> {
   const { watchedAccount, stateFile = STATE_FILE, tokensFile = TOKENS_FILE } = options;
@@ -47,9 +49,11 @@ export async function importJsonFiles(
   // A row already here is this database's own, and newer than the file.
   let authorized = (await localQueueOwner(db)) !== null;
   if (!authorized) {
+    // tokens.json held the refresh token in the clear, and stays as it is;
+    // the copy that lands in the store is encrypted like any other.
     const refreshToken = readJson<SpotifyTokens>(tokensFile)?.refresh_token;
     if (refreshToken) {
-      await saveLocalQueueOwner(db, refreshToken);
+      await saveLocalQueueOwner(db, cipher, refreshToken);
       authorized = true;
       imported.queueOwner = true;
     }

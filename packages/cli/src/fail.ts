@@ -16,3 +16,12 @@ export function loadOrFail<T>(load: () => T): T {
     return fail(reason(err));
   }
 }
+
+// The same, for a load that has to be awaited: importing the encryption key.
+export async function awaitOrFail<T>(load: () => Promise<T>): Promise<T> {
+  try {
+    return await load();
+  } catch (err) {
+    return fail(reason(err));
+  }
+}

@@ -1,5 +1,6 @@
 // packages/core runs on both Node and workerd, so it uses Web standards only
 // and takes everything else as arguments.
+export { type Cipher, cipher, generateSecretKey } from './crypto.ts';
 export { type Db, type Row, type SqlValue } from './db.ts';
 export { type D1Binding, d1Db, type D1Statement } from './d1.ts';
 export { getNowPlaying, type NowPlaying } from './lastfm.ts';
