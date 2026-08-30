@@ -75,8 +75,10 @@ export function refreshTokens(app: SpotifyApp, refreshToken: string): Promise<Sp
 // two of these can exist side by side without one answering as the other.
 export function spotifyApi(options: {
   app: SpotifyApp;
-  readTokens: () => SpotifyTokens | null | Promise<SpotifyTokens | null>;
-  saveTokens: (tokens: SpotifyTokens) => void | Promise<void>;
+  // Only the refresh token is stored. The access token lives in this closure,
+  // so the caller never has to keep a value that is stale within the hour.
+  readRefreshToken: () => string | null | Promise<string | null>;
+  saveRefreshToken: (refreshToken: string) => void | Promise<void>;
 }): SpotifyApi {
   let accessToken: string | null = null;
   let expiresAt = 0;
@@ -85,18 +87,16 @@ export function spotifyApi(options: {
   async function getAccessToken(): Promise<string> {
     if (accessToken && Date.now() < expiresAt - 30_000) return accessToken;
 
-    const stored = await options.readTokens();
-    if (!stored?.refresh_token) {
-      throw new Error('No stored Spotify authorization to refresh.');
-    }
+    const stored = await options.readRefreshToken();
+    if (!stored) throw new Error('No stored Spotify authorization to refresh.');
 
-    const tokens = await refreshTokens(options.app, stored.refresh_token);
+    const tokens = await refreshTokens(options.app, stored);
 
     accessToken = tokens.access_token;
     expiresAt = Date.now() + tokens.expires_in * 1000;
 
     // Spotify sometimes rotates the refresh token itself; persist if so.
-    if (tokens.refresh_token) await options.saveTokens({ ...stored, ...tokens });
+    if (tokens.refresh_token) await options.saveRefreshToken(tokens.refresh_token);
 
     return accessToken;
   }

@@ -20,8 +20,10 @@ won't touch your queue unless Spotify is already playing.
    the track with `POST /me/player/queue`.
 4. Otherwise it logs the reason and moves on. It never retries a track.
 
-It writes the last track it saw to `state.json`, keyed by Last.fm user, so
-restarting won't re-queue whatever was playing when you stopped it.
+It keeps everything it remembers in `earshot.db`, a SQLite file in the
+directory you run it from: your Spotify authorization, who you're watching, and
+the last track it saw for each of them, so restarting won't re-queue whatever
+was playing when you stopped it.
 
 ## Setup
 
@@ -63,7 +65,7 @@ npx earshot auth
 
 This prints a URL. Open it, log in with your own Spotify account, the one
 whose queue you want to control, and approve access. It saves a refresh
-token to `tokens.json`. You only do this once, unless you revoke access.
+token to `earshot.db`. You only do this once, unless you revoke access.
 
 ### 5. Run
 
@@ -82,7 +84,7 @@ npx earshot first_username &
 npx earshot second_username &
 ```
 
-They share `state.json` and keep one entry each, so they don't overwrite
+They share `earshot.db` and keep one row each, so they don't overwrite
 each other's progress. Two instances watching the *same* account won't
 queue the track twice either: whichever one records it first wins.
 
@@ -99,6 +101,12 @@ adjacent or to nothing at all. When the normalized artist and title don't
 match exactly, it falls back to Spotify's top search result, which is
 usually right and occasionally embarrassing. Every miss is logged with the
 artist and title so you can check what it did.
+
+**Upgrading from `state.json` and `tokens.json`.** Earlier versions kept
+their state in those two files. The first run reads whatever it finds in them
+into `earshot.db` and then leaves them alone — nothing is deleted for you, and
+a later run never reads them back over anything the database has since
+learned. Once it has started cleanly you can delete both.
 
 **Request volume stays low.** Last.fm gets one call per `POLL_INTERVAL_MS`,
 60 seconds by default. Spotify is only called when the now-playing track

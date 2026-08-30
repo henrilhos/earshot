@@ -2,7 +2,7 @@ node_modules/
 .env
 tokens.json
 state.json
-state.json.lock/
+earshot.db*
 *.tmp
 *.log
 
