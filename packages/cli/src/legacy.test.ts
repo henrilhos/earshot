@@ -4,9 +4,17 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { test, type TestContext } from 'node:test';
 
-import { claimNowPlaying, getWatchedAccount, listSubscriptions, migrate } from '../core/index.ts';
+import {
+  type Cipher,
+  cipher,
+  claimNowPlaying,
+  generateSecretKey,
+  getWatchedAccount,
+  listSubscriptions,
+  migrate,
+} from '../core/index.ts';
 import { importJsonFiles } from './legacy.ts';
-import { LOCAL_QUEUE_OWNER, localQueueOwner } from './owner.ts';
+import { LOCAL_QUEUE_OWNER, localQueueOwner, requireLocalRefreshToken } from './owner.ts';
 import { type LocalDatabase, openDatabase } from './sqlite.ts';
 
 const TOKENS = { access_token: 'expired', refresh_token: 'the-refresh-token', expires_in: 3600 };
@@ -33,14 +41,21 @@ async function database(t: TestContext): Promise<LocalDatabase> {
   return db;
 }
 
+// The import writes through the same Cipher the rest of the CLI uses, on a
+// throwaway key rather than whatever the environment happens to hold.
+function throwawayCipher(): Promise<Cipher> {
+  return cipher(generateSecretKey());
+}
+
 test('imports the users map as one Watched Account each, carrying the last-seen key', async (t) => {
   const db = await database(t);
+  const sealed = await throwawayCipher();
   const paths = files(t, {
     state: { users: { someone: 'kendrick lamar|||alright', someone_else: 'sza|||snooze' } },
     tokens: TOKENS,
   });
 
-  const imported = await importJsonFiles(db, { watchedAccount: 'someone', ...paths });
+  const imported = await importJsonFiles(db, sealed, { watchedAccount: 'someone', ...paths });
 
   assert.deepEqual(imported.watchedAccounts, ['someone', 'someone_else']);
   assert.equal((await getWatchedAccount(db, 'someone'))?.lastNowPlayingKey, 'kendrick lamar|||alright');
@@ -49,9 +64,10 @@ test('imports the users map as one Watched Account each, carrying the last-seen 
 
 test('subscribes the local Queue Owner to everyone the file was watching', async (t) => {
   const db = await database(t);
+  const sealed = await throwawayCipher();
   const paths = files(t, { state: { users: { someone: 'kendrick lamar|||alright' } }, tokens: TOKENS });
 
-  await importJsonFiles(db, { watchedAccount: 'someone', ...paths });
+  await importJsonFiles(db, sealed, { watchedAccount: 'someone', ...paths });
 
   assert.deepEqual(await listSubscriptions(db, LOCAL_QUEUE_OWNER), [
     { queueOwnerId: LOCAL_QUEUE_OWNER, watchedAccountId: 'someone' },
@@ -60,28 +76,33 @@ test('subscribes the local Queue Owner to everyone the file was watching', async
 
 test('imports a bare lastKey as the account being watched', async (t) => {
   const db = await database(t);
+  const sealed = await throwawayCipher();
   const paths = files(t, { state: { lastKey: 'kendrick lamar|||alright' }, tokens: TOKENS });
 
-  await importJsonFiles(db, { watchedAccount: 'someone', ...paths });
+  await importJsonFiles(db, sealed, { watchedAccount: 'someone', ...paths });
 
   assert.equal((await getWatchedAccount(db, 'someone'))?.lastNowPlayingKey, 'kendrick lamar|||alright');
 });
 
 test('imports the refresh token as the local Queue Owner', async (t) => {
   const db = await database(t);
+  const sealed = await throwawayCipher();
   const paths = files(t, { tokens: TOKENS });
 
-  const imported = await importJsonFiles(db, { watchedAccount: 'someone', ...paths });
+  const imported = await importJsonFiles(db, sealed, { watchedAccount: 'someone', ...paths });
 
   assert.equal(imported.queueOwner, true);
-  assert.equal((await localQueueOwner(db))?.refreshToken, 'the-refresh-token');
+  assert.equal(await requireLocalRefreshToken(db, sealed), 'the-refresh-token');
+  // Not the token itself: the row holds what the Cipher made of it.
+  assert.notEqual((await localQueueOwner(db))?.refreshToken, 'the-refresh-token');
 });
 
 test('leaves both files where it found them', async (t) => {
   const db = await database(t);
+  const sealed = await throwawayCipher();
   const paths = files(t, { state: { users: { someone: 'kendrick lamar|||alright' } }, tokens: TOKENS });
 
-  await importJsonFiles(db, { watchedAccount: 'someone', ...paths });
+  await importJsonFiles(db, sealed, { watchedAccount: 'someone', ...paths });
 
   assert.ok(existsSync(paths.stateFile));
   assert.ok(existsSync(paths.tokensFile));
@@ -91,11 +112,12 @@ test('leaves both files where it found them', async (t) => {
 // the store alone.
 test('never imports over what the store already knows', async (t) => {
   const db = await database(t);
+  const sealed = await throwawayCipher();
   const paths = files(t, { state: { users: { someone: 'kendrick lamar|||alright' } }, tokens: TOKENS });
 
-  await importJsonFiles(db, { watchedAccount: 'someone', ...paths });
+  await importJsonFiles(db, sealed, { watchedAccount: 'someone', ...paths });
   await claimNowPlaying(db, 'someone', 'sza|||snooze');
-  const again = await importJsonFiles(db, { watchedAccount: 'someone', ...paths });
+  const again = await importJsonFiles(db, sealed, { watchedAccount: 'someone', ...paths });
 
   assert.deepEqual(again, { queueOwner: false, watchedAccounts: [] });
   assert.equal((await getWatchedAccount(db, 'someone'))?.lastNowPlayingKey, 'sza|||snooze');
@@ -105,9 +127,10 @@ test('never imports over what the store already knows', async (t) => {
 // the token is gone. There is nobody to subscribe the accounts to yet.
 test('waits for an authorization before importing Watched Accounts', async (t) => {
   const db = await database(t);
+  const sealed = await throwawayCipher();
   const paths = files(t, { state: { users: { someone: 'kendrick lamar|||alright' } } });
 
-  const imported = await importJsonFiles(db, { watchedAccount: 'someone', ...paths });
+  const imported = await importJsonFiles(db, sealed, { watchedAccount: 'someone', ...paths });
 
   assert.deepEqual(imported, { queueOwner: false, watchedAccounts: [] });
   assert.equal(await getWatchedAccount(db, 'someone'), null);
@@ -115,9 +138,10 @@ test('waits for an authorization before importing Watched Accounts', async (t) =
 
 test('imports nothing when there are no files to import', async (t) => {
   const db = await database(t);
+  const sealed = await throwawayCipher();
   const paths = files(t, {});
 
-  const imported = await importJsonFiles(db, { watchedAccount: 'someone', ...paths });
+  const imported = await importJsonFiles(db, sealed, { watchedAccount: 'someone', ...paths });
 
   assert.deepEqual(imported, { queueOwner: false, watchedAccounts: [] });
   assert.equal(await localQueueOwner(db), null);

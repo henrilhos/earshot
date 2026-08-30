@@ -11,15 +11,16 @@ import {
   tick,
   watchAccount,
 } from '../core/index.ts';
-import { loadConfig } from './config.ts';
+import { loadCipher, loadConfig } from './config.ts';
 import { DATABASE_FILE, openLocalDatabase } from './database.ts';
-import { fail, loadOrFail } from './fail.ts';
+import { awaitOrFail, fail, loadOrFail } from './fail.ts';
 import { importJsonFiles, STATE_FILE, TOKENS_FILE } from './legacy.ts';
 import { LOCAL_QUEUE_OWNER, requireLocalRefreshToken, saveLocalRefreshToken } from './owner.ts';
 
 const watchedAccount = process.argv[2] || fail('Which Last.fm account? Usage: earshot <lastfm-username>');
 
 const config = loadOrFail(loadConfig);
+const cipher = await awaitOrFail(loadCipher);
 
 function log(message: string): void {
   console.log(`[${new Date().toISOString()}] ${message}`);
@@ -27,7 +28,7 @@ function log(message: string): void {
 
 const db = await openLocalDatabase();
 
-const imported = await importJsonFiles(db, { watchedAccount });
+const imported = await importJsonFiles(db, cipher, { watchedAccount });
 if (imported.queueOwner) {
   log(`Imported your Spotify authorization from ${TOKENS_FILE} into ${DATABASE_FILE}.`);
 }
@@ -38,7 +39,7 @@ if (imported.watchedAccounts.length > 0) {
 // Fail here rather than at the first Spotify call: without a Queue Owner there
 // is nothing to hang the Subscription on either.
 try {
-  await requireLocalRefreshToken(db);
+  await requireLocalRefreshToken(db, cipher);
 } catch (err) {
   fail(reason(err));
 }
@@ -48,8 +49,8 @@ await addSubscription(db, LOCAL_QUEUE_OWNER, watchedAccount);
 
 const api = spotifyApi({
   app: config.spotify,
-  readRefreshToken: () => requireLocalRefreshToken(db),
-  saveRefreshToken: (refreshToken) => saveLocalRefreshToken(db, refreshToken),
+  readRefreshToken: () => requireLocalRefreshToken(db, cipher),
+  saveRefreshToken: (refreshToken) => saveLocalRefreshToken(db, cipher, refreshToken),
 });
 
 const deps: SyncDeps = {

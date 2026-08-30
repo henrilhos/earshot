@@ -23,7 +23,8 @@ won't touch your queue unless Spotify is already playing.
 It keeps everything it remembers in `earshot.db`, a SQLite file in the
 directory you run it from: your Spotify authorization, who you're watching, and
 the last track it saw for each of them, so restarting won't re-queue whatever
-was playing when you stopped it.
+was playing when you stopped it. The authorization is encrypted with a key from
+your `.env`; see [what the encryption is for](#notes-and-limitations).
 
 ## Setup
 
@@ -52,10 +53,18 @@ LASTFM_API_KEY=...
 SPOTIFY_CLIENT_ID=...
 SPOTIFY_CLIENT_SECRET=...
 SPOTIFY_REDIRECT_URI=http://127.0.0.1:8888/callback
+EARSHOT_SECRET_KEY=...
 POLL_INTERVAL_MS=60000   # optional
 ```
 
 From a clone, `cp .env.example .env` gets you the same file with comments.
+
+`EARSHOT_SECRET_KEY` is what your Spotify refresh token is encrypted with. It's
+thirty-two random bytes in base64, and you don't have to make one yourself:
+run `npx earshot auth` without it and it prints a fresh key to paste into
+`.env`. Keep it, back it up with the database, and don't put it in git. Lose it
+and nothing is broken except that authorization — delete `earshot.db`, set a
+new key, and authorize again.
 
 ### 4. Authorize
 
@@ -104,9 +113,18 @@ artist and title so you can check what it did.
 
 **Upgrading from `state.json` and `tokens.json`.** Earlier versions kept
 their state in those two files. The first run reads whatever it finds in them
-into `earshot.db` and then leaves them alone — nothing is deleted for you, and
+into `earshot.db`, encrypting the token on the way in, and then leaves them
+alone — nothing is deleted for you, and
 a later run never reads them back over anything the database has since
 learned. Once it has started cleanly you can delete both.
+
+**What the encryption is for.** The refresh token in `earshot.db` is encrypted
+with AES-256-GCM, so the database on its own is not enough to act as you on
+Spotify. That covers the way these things usually leak: a backup, a synced
+folder, a directory committed by accident. It is not protection against anyone
+who can read your `.env`, because the key is right there next to the data —
+same machine, same account, usually the same folder. Anyone with your user has
+both.
 
 **Request volume stays low.** Last.fm gets one call per `POLL_INTERVAL_MS`,
 60 seconds by default. Spotify is only called when the now-playing track

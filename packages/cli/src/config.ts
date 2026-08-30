@@ -1,5 +1,5 @@
 import { existsSync } from 'node:fs';
-import type { SpotifyApp } from '../core/index.ts';
+import { type Cipher, cipher, generateSecretKey, type SpotifyApp } from '../core/index.ts';
 
 export type Config = {
   lastfmApiKey: string;
@@ -41,6 +41,21 @@ export function loadSpotifyApp(): SpotifyApp {
     clientSecret: env.SPOTIFY_CLIENT_SECRET,
     redirectUri: env.SPOTIFY_REDIRECT_URI,
   };
+}
+
+// The key is read here and nowhere else: everything below takes the Cipher.
+// A missing key is not a rule to look up, so the message hands over a fresh one
+// to paste rather than describing the shape of the one it wants.
+export async function loadCipher(): Promise<Cipher> {
+  loadDotEnv();
+  const secretKey = process.env.EARSHOT_SECRET_KEY;
+  if (!secretKey) {
+    throw new Error(
+      'Missing EARSHOT_SECRET_KEY, which encrypts your Spotify authorization at rest.\n' +
+        `Add this line to your .env:\n\n  EARSHOT_SECRET_KEY=${generateSecretKey()}\n`,
+    );
+  }
+  return cipher(secretKey);
 }
 
 // Read once, here at the edge, and handed down to the core as plain values.
