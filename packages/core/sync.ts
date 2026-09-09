@@ -1,5 +1,5 @@
 import type { NowPlaying } from './lastfm.ts';
-import type { TrackMatch } from './spotify.ts';
+import { SpotifyGrantRevokedError, type TrackMatch } from './spotify.ts';
 import type { Outcome } from './store.ts';
 
 // One Queue Owner's queue attempt, everything a poll needs to make one.
@@ -10,6 +10,11 @@ export type Subscriber = {
   hasActiveDevice: () => Promise<boolean>;
   findTrack: (artist: string, title: string) => Promise<TrackMatch | null>;
   queueTrack: (uri: string) => Promise<void>;
+  // Called once this Subscriber's grant has answered invalid_grant: parks
+  // them as needing reauthorization so the next tick's subscribers() stops
+  // handing them back, and this tick's Spotify call is the last one spent on
+  // a token that will never work again.
+  park: () => Promise<void>;
 };
 
 // What one queue attempt leaves behind, still missing the Watched Account and
@@ -86,6 +91,17 @@ async function deliver(deps: SyncDeps, subscriber: Subscriber, current: NowPlayi
     deps.log(`QUEUED: "${match.track.name}" by ${artists} (${match.track.uri}) - ${who}`);
     await report(deps, { ...base, outcome: 'queued', exact: match.exact, errorMessage: null });
   } catch (err) {
+    if (err instanceof SpotifyGrantRevokedError) {
+      deps.log(`UNAUTHORIZED (Spotify grant revoked, parking pending reauthorization) - ${track} - ${who}`);
+      try {
+        await subscriber.park();
+      } catch (parkErr) {
+        deps.log(`Could not park ${who} after their Spotify grant died: ${reason(parkErr)}`);
+      }
+      await report(deps, { ...base, outcome: 'unauthorized', exact: null, errorMessage: reason(err) });
+      return;
+    }
+
     const message = reason(err);
     deps.log(`ERROR while processing ${track} - ${who}: ${message}`);
     await report(deps, { ...base, outcome: 'error', exact: null, errorMessage: message });

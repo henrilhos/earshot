@@ -240,12 +240,16 @@ export async function listSubscriptions(db: Db, queueOwnerId: string): Promise<S
   return rows.map(toSubscription);
 }
 
-// One poll, then one Delivery for each of these.
+// One poll, then one Delivery for each of these. A Queue Owner parked as
+// needing reauthorization is left out: their grant is dead until they
+// reconnect, so handing them back here would only spend another doomed
+// refresh call on the shared Spotify app.
 export async function listSubscribers(db: Db, lastfmUsername: string): Promise<QueueOwner[]> {
   const rows = await db.all(
     `SELECT queue_owner.* FROM queue_owner
      JOIN subscription ON subscription.queue_owner_id = queue_owner.spotify_user_id
      WHERE subscription.watched_account_id = ?
+       AND queue_owner.needs_reauthorization = 0
      ORDER BY queue_owner.spotify_user_id`,
     [lastfmUsername],
   );

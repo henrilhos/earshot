@@ -16,6 +16,7 @@ export {
   type SpotifyApi,
   type SpotifyApp,
   type SpotifyCredentials,
+  SpotifyGrantRevokedError,
   type SpotifyTokens,
   type SpotifyTrack,
   spotifyApi,

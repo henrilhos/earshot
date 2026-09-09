@@ -18,6 +18,7 @@ import {
   recordDelivery,
   runTick,
   saveRefreshToken,
+  setNeedsReauthorization,
   spotifyApi,
   type Subscriber,
   tick,
@@ -87,5 +88,6 @@ function toSubscriber(db: Db, env: Env, secretCipher: Cipher, owner: QueueOwner)
     hasActiveDevice: () => hasActiveDevice(api),
     findTrack: (artist, title) => findTrack(api, artist, title),
     queueTrack: (uri) => queueTrack(api, uri),
+    park: () => setNeedsReauthorization(db, owner.spotifyUserId, true),
   };
 }

@@ -8,7 +8,9 @@ import {
   type D1Binding,
   type Db,
   generateSecretKey,
+  getQueueOwner,
   listDeliveries,
+  listSubscribers,
   migrate,
   type Row,
   saveQueueOwner,
@@ -185,4 +187,40 @@ test('one Subscriber whose queue attempt fails still leaves the other Delivered'
   assert.equal(ownDeliveries[0]?.outcome, 'error');
   assert.match(ownDeliveries[0]?.errorMessage ?? '', /403/);
   assert.equal(defaultDeliveries[0]?.outcome, 'queued');
+});
+
+test('parks a Queue Owner whose Spotify grant died and stops scheduling them', async (t) => {
+  const secretKey = generateSecretKey();
+  const db = await testDb();
+  await seed(db, secretKey);
+
+  const ownBasicAuth = `Basic ${btoa('own-client-id:own-client-secret')}`;
+
+  const requests: Requested[] = [];
+  t.mock.method(globalThis, 'fetch', async (url: string | URL, init: RequestInit = {}) => {
+    const href = String(url);
+    if (href.startsWith('https://accounts.spotify.com/api/token')) {
+      const auth = (init.headers as Record<string, string>).Authorization;
+      if (auth === ownBasicAuth) return json({ error: 'invalid_grant' }, { status: 400 });
+    }
+    return fetchStub(requests)(url, init);
+  });
+
+  await runInstanceTick(db, environment(secretKey));
+
+  const ownDeliveries = await listDeliveries(db, 'brought-own-app', 10);
+  const defaultDeliveries = await listDeliveries(db, 'uses-default-app', 10);
+
+  assert.equal(ownDeliveries[0]?.outcome, 'unauthorized');
+  assert.match(ownDeliveries[0]?.errorMessage ?? '', /invalid_grant/);
+  assert.equal(defaultDeliveries[0]?.outcome, 'queued');
+
+  // Parked immediately, without waiting for a second failed tick.
+  assert.equal((await getQueueOwner(db, 'brought-own-app'))?.needsReauthorization, true);
+
+  // And the next poll's fan-out no longer spends a refresh call on them.
+  assert.deepEqual(
+    (await listSubscribers(db, 'watched-person')).map((owner) => owner.spotifyUserId),
+    ['uses-default-app'],
+  );
 });
