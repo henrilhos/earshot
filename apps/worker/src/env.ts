@@ -13,9 +13,12 @@ export type Env = {
   // Decrypts every Queue Owner's refresh token (ADR-0003's WebCrypto cipher).
   EARSHOT_SECRET_KEY: string;
   // The Instance's own Spotify app, used by any Queue Owner who did not bring
-  // their own (ADR-0001's nullable client id/secret).
+  // their own (ADR-0001's nullable client id/secret). Sign-in always goes
+  // through this app: a Queue Owner cannot bring their own until they exist
+  // as a row to bring it to.
   SPOTIFY_CLIENT_ID: string;
   SPOTIFY_CLIENT_SECRET: string;
+  SPOTIFY_REDIRECT_URI: string;
   // The shared secret POST /api/tick is authenticated with. Unset means the
   // endpoint is closed, not open.
   TICK_TOKEN?: string;
