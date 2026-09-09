@@ -29,12 +29,19 @@ claims nothing had nothing to do.
 There is no idle backoff. A Watched Account who stopped scrobbling costs one
 request a minute, far under Last.fm's limits.
 
+A poll fans out to one Delivery per Subscription: every Queue Owner watching
+that person gets their own queue attempt, recorded with an Outcome (`queued`,
+`no_match`, `no_device`, `unauthorized`, `error`) and, for `queued`, whether
+the match was exact or a fallback to Spotify's top search result.
+
 ## Bindings and secrets
 
 | Name | What it is |
 | --- | --- |
 | `DB` | The D1 binding |
 | `LASTFM_API_KEY` | Reads public recent tracks, so one key serves the whole Instance |
+| `EARSHOT_SECRET_KEY` | Decrypts every Queue Owner's refresh token |
+| `SPOTIFY_CLIENT_ID` / `SPOTIFY_CLIENT_SECRET` | The Instance's own Spotify app, used by any Queue Owner who did not bring their own |
 | `TICK_TOKEN` | The bearer token `POST /api/tick` requires. Unset closes the endpoint rather than opening it |
 | `POLL_INTERVAL_MS` | Optional. Defaults to 60000, matching the Cron Trigger |
 

@@ -1,7 +1,14 @@
-// The Instance's own Spotify app registration, or a Queue Owner's own.
-export type SpotifyApp = {
+// What every Spotify call needs to authenticate as an app, whether it is the
+// Instance's own registration or a Queue Owner's. A Queue Owner's row never
+// carries a redirect URI (only sign-in does), so refreshing and calling the
+// API ask for no more than this.
+export type SpotifyCredentials = {
   clientId: string;
   clientSecret: string;
+};
+
+// The Instance's own Spotify app registration, or a Queue Owner's own.
+export type SpotifyApp = SpotifyCredentials & {
   redirectUri: string;
 };
 
@@ -27,11 +34,11 @@ const SCOPES = 'user-modify-playback-state user-read-playback-state';
 
 // btoa rather than node:buffer, since this has to run on workerd too. Client
 // credentials are ASCII, which is all btoa accepts.
-function basicAuth(app: SpotifyApp): string {
+function basicAuth(app: SpotifyCredentials): string {
   return `Basic ${btoa(`${app.clientId}:${app.clientSecret}`)}`;
 }
 
-async function requestTokens(app: SpotifyApp, grant: Record<string, string>): Promise<SpotifyTokens> {
+async function requestTokens(app: SpotifyCredentials, grant: Record<string, string>): Promise<SpotifyTokens> {
   const res = await fetch('https://accounts.spotify.com/api/token', {
     method: 'POST',
     headers: {
@@ -64,7 +71,7 @@ export function exchangeCode(app: SpotifyApp, code: string): Promise<SpotifyToke
   });
 }
 
-export function refreshTokens(app: SpotifyApp, refreshToken: string): Promise<SpotifyTokens> {
+export function refreshTokens(app: SpotifyCredentials, refreshToken: string): Promise<SpotifyTokens> {
   return requestTokens(app, {
     grant_type: 'refresh_token',
     refresh_token: refreshToken,
@@ -74,7 +81,7 @@ export function refreshTokens(app: SpotifyApp, refreshToken: string): Promise<Sp
 // The access token is cached in this closure rather than at module level, so
 // two of these can exist side by side without one answering as the other.
 export function spotifyApi(options: {
-  app: SpotifyApp;
+  app: SpotifyCredentials;
   // Only the refresh token is stored. The access token lives in this closure,
   // so the caller never has to keep a value that is stale within the hour.
   readRefreshToken: () => string | null | Promise<string | null>;
@@ -137,13 +144,21 @@ function normalize(str: string): string {
     .trim();
 }
 
+// Whether the match is exact or Spotify's top result on a lucky guess, kept
+// alongside the track rather than folded away: a Delivery records which one
+// it was, since the two are not equally trustworthy history.
+export type TrackMatch = {
+  track: SpotifyTrack;
+  exact: boolean;
+};
+
 // The fallback to the top result is deliberate: Spotify's own relevance
 // ranking is usually better than nothing when nothing matches exactly.
 export async function findTrack(
   api: SpotifyApi,
   artist: string,
   title: string,
-): Promise<SpotifyTrack | null> {
+): Promise<TrackMatch | null> {
   const wantTitle = normalize(title);
   const wantArtist = normalize(artist);
 
@@ -166,8 +181,10 @@ export async function findTrack(
       normalize(track.name) === wantTitle &&
       track.artists.some((a) => normalize(a.name) === wantArtist),
   );
+  if (exact) return { track: exact, exact: true };
 
-  return exact ?? candidates[0] ?? null;
+  const fallback = candidates[0];
+  return fallback ? { track: fallback, exact: false } : null;
 }
 
 // The queue endpoint returns 404 "No active device found" when nothing is

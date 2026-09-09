@@ -15,9 +15,11 @@ export {
   refreshTokens,
   type SpotifyApi,
   type SpotifyApp,
+  type SpotifyCredentials,
   type SpotifyTokens,
   type SpotifyTrack,
   spotifyApi,
+  type TrackMatch,
 } from './spotify.ts';
 export {
   addSubscription,
@@ -47,4 +49,11 @@ export {
   watchAccount,
   type WatchedAccount,
 } from './store.ts';
-export { nowPlayingKey, reason, type SyncDeps, tick } from './sync.ts';
+export {
+  type DeliveryAttempt,
+  nowPlayingKey,
+  reason,
+  type Subscriber,
+  type SyncDeps,
+  tick,
+} from './sync.ts';

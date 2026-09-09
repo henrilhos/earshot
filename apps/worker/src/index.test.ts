@@ -1,11 +1,13 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
 
+import { generateSecretKey } from '../../../packages/core/index.ts';
 import type { D1Binding, D1Statement, SqlValue } from '../../../packages/core/index.ts';
 import type { Env } from './env.ts';
 import worker from './index.ts';
 
 const TOKEN = 'a-shared-secret';
+const SECRET_KEY = generateSecretKey();
 
 // Answers the way an empty D1 does, and records what it was asked, so a tick
 // that never reached the database is visible as an empty log rather than as a
@@ -32,7 +34,15 @@ function fakeD1(log: string[]): D1Binding {
 function environment(overrides: Partial<Env> = {}): { env: Env; sql: string[] } {
   const sql: string[] = [];
   return {
-    env: { DB: fakeD1(sql), LASTFM_API_KEY: 'lastfm-key', TICK_TOKEN: TOKEN, ...overrides },
+    env: {
+      DB: fakeD1(sql),
+      LASTFM_API_KEY: 'lastfm-key',
+      EARSHOT_SECRET_KEY: SECRET_KEY,
+      SPOTIFY_CLIENT_ID: 'instance-client-id',
+      SPOTIFY_CLIENT_SECRET: 'instance-client-secret',
+      TICK_TOKEN: TOKEN,
+      ...overrides,
+    },
     sql,
   };
 }
