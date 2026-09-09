@@ -103,6 +103,7 @@ function environment(secretKey: string): Env {
     EARSHOT_SECRET_KEY: secretKey,
     SPOTIFY_CLIENT_ID: 'instance-client-id',
     SPOTIFY_CLIENT_SECRET: 'instance-client-secret',
+    SPOTIFY_REDIRECT_URI: 'https://earshot.example/api/auth/callback',
   };
 }
 

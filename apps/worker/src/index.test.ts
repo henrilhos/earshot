@@ -40,6 +40,7 @@ function environment(overrides: Partial<Env> = {}): { env: Env; sql: string[] } 
       EARSHOT_SECRET_KEY: SECRET_KEY,
       SPOTIFY_CLIENT_ID: 'instance-client-id',
       SPOTIFY_CLIENT_SECRET: 'instance-client-secret',
+      SPOTIFY_REDIRECT_URI: 'https://earshot.example/api/auth/callback',
       TICK_TOKEN: TOKEN,
       ...overrides,
     },

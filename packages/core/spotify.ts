@@ -67,13 +67,18 @@ async function requestTokens(app: SpotifyCredentials, grant: Record<string, stri
   return data;
 }
 
-export function authorizeUrl(app: SpotifyApp): string {
+// state is optional because the standalone CLI's callback server (auth.ts)
+// has no cross-site request to distinguish it from: it is the only thing
+// listening on that port. The Instance hands one back to itself through a
+// cookie (apps/worker/src/auth.ts) and checks it on the way back in.
+export function authorizeUrl(app: SpotifyApp, state?: string): string {
   const query = new URLSearchParams({
     response_type: 'code',
     client_id: app.clientId,
     scope: SCOPES,
     redirect_uri: app.redirectUri,
   });
+  if (state) query.set('state', state);
   return `https://accounts.spotify.com/authorize?${query}`;
 }
 
@@ -90,6 +95,25 @@ export function refreshTokens(app: SpotifyCredentials, refreshToken: string): Pr
     grant_type: 'refresh_token',
     refresh_token: refreshToken,
   });
+}
+
+// The identity a Queue Owner signs in as (ADR-0001): Spotify's id, which
+// never changes, and a display name, which can be null on Spotify's side.
+export type SpotifyProfile = {
+  id: string;
+  displayName: string;
+};
+
+// Called once, right after the OAuth exchange, with the access token that
+// exchange handed back - there is no stored Queue Owner yet for spotifyApi's
+// refresh machinery to key on.
+export async function getSpotifyProfile(accessToken: string): Promise<SpotifyProfile> {
+  const res = await fetch('https://api.spotify.com/v1/me', {
+    headers: { Authorization: `Bearer ${accessToken}` },
+  });
+  const data = (await res.json()) as { id?: string; display_name?: string | null };
+  if (!res.ok || !data.id) throw new Error(`Spotify profile request failed: ${JSON.stringify(data)}`);
+  return { id: data.id, displayName: data.display_name ?? data.id };
 }
 
 // The access token is cached in this closure rather than at module level, so
