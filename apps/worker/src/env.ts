@@ -10,6 +10,12 @@ export type Env = {
   // Recent tracks are public, so this is the Instance's key for every Watched
   // Account rather than one per Queue Owner.
   LASTFM_API_KEY: string;
+  // Decrypts every Queue Owner's refresh token (ADR-0003's WebCrypto cipher).
+  EARSHOT_SECRET_KEY: string;
+  // The Instance's own Spotify app, used by any Queue Owner who did not bring
+  // their own (ADR-0001's nullable client id/secret).
+  SPOTIFY_CLIENT_ID: string;
+  SPOTIFY_CLIENT_SECRET: string;
   // The shared secret POST /api/tick is authenticated with. Unset means the
   // endpoint is closed, not open.
   TICK_TOKEN?: string;

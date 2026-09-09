@@ -6,6 +6,7 @@ import {
   hasActiveDevice,
   queueTrack,
   reason,
+  recordDelivery,
   spotifyApi,
   type SyncDeps,
   tick,
@@ -57,9 +58,19 @@ const deps: SyncDeps = {
   watchedAccount,
   nowPlaying: (account) => getNowPlaying({ apiKey: config.lastfmApiKey, watchedAccount: account }),
   claim: (key) => claimNowPlaying(db, watchedAccount, key),
-  hasActiveDevice: () => hasActiveDevice(api),
-  findTrack: (artist, title) => findTrack(api, artist, title),
-  queueTrack: (uri) => queueTrack(api, uri),
+  // Standalone has exactly one Queue Owner and the command line names the one
+  // Watched Account this process subscribes them to, so the fan-out is always
+  // this one Subscriber.
+  subscribers: async () => [
+    {
+      queueOwnerId: LOCAL_QUEUE_OWNER,
+      hasActiveDevice: () => hasActiveDevice(api),
+      findTrack: (artist, title) => findTrack(api, artist, title),
+      queueTrack: (uri) => queueTrack(api, uri),
+    },
+  ],
+  recordDelivery: (delivery) =>
+    recordDelivery(db, { ...delivery, watchedAccountId: watchedAccount, createdAt: Date.now() }),
   log,
 };
 

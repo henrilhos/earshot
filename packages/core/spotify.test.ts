@@ -168,7 +168,8 @@ test('prefers an exact match over Spotify ranking', async () => {
 
   const match = await findTrack(api, 'Kendrick Lamar', 'Alright');
 
-  assert.equal(match?.uri, 'spotify:track:alright');
+  assert.equal(match?.track.uri, 'spotify:track:alright');
+  assert.equal(match?.exact, true);
 });
 
 test('matches through version markers and feature credits', async () => {
@@ -180,7 +181,8 @@ test('matches through version markers and feature credits', async () => {
 
   const match = await findTrack(api, 'Kendrick Lamar (part. Pharrell)', 'Alright - Remastered 2015');
 
-  assert.equal(match?.uri, 'spotify:track:alright');
+  assert.equal(match?.track.uri, 'spotify:track:alright');
+  assert.equal(match?.exact, true);
   assert.match(seen[0] ?? '', /q=track%3Aalright\+artist%3Akendrick\+lamar/);
 });
 
@@ -191,7 +193,8 @@ test('falls back to the top result when nothing matches exactly', async () => {
 
   const match = await findTrack(api, 'Kendrick Lamar', 'Alright');
 
-  assert.equal(match?.uri, 'spotify:track:cover');
+  assert.equal(match?.track.uri, 'spotify:track:cover');
+  assert.equal(match?.exact, false);
 });
 
 test('reports no match when Spotify returns nothing', async () => {
