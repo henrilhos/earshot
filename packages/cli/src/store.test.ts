@@ -202,6 +202,19 @@ test('fans one Watched Account out to every subscriber', async (t) => {
   );
 });
 
+test('leaves a parked Queue Owner out of the fan-out', async (t) => {
+  const db = await database(t);
+  await subscribed(db);
+  await subscribed(db, { ...OWNER, spotifyUserId: 'other-owner', displayName: 'Other' });
+
+  await setNeedsReauthorization(db, 'queue-owner', true);
+
+  assert.deepEqual(
+    (await listSubscribers(db, 'someone')).map((owner) => owner.spotifyUserId),
+    ['other-owner'],
+  );
+});
+
 test('subscribing twice is the same Subscription', async (t) => {
   const db = await database(t);
   await subscribed(db);

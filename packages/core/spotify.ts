@@ -38,6 +38,17 @@ function basicAuth(app: SpotifyCredentials): string {
   return `Basic ${btoa(`${app.clientId}:${app.clientSecret}`)}`;
 }
 
+// Spotify's answer to "this grant will never work again": the refresh token
+// was revoked, expired, or never valid. Every other non-2xx (502, a timeout,
+// a 500) is transient and worth retrying next tick; this one is not, which is
+// why it gets its own type instead of joining the generic Error below.
+export class SpotifyGrantRevokedError extends Error {
+  constructor() {
+    super('Spotify refused the grant (invalid_grant): it will not become valid by retrying.');
+    this.name = 'SpotifyGrantRevokedError';
+  }
+}
+
 async function requestTokens(app: SpotifyCredentials, grant: Record<string, string>): Promise<SpotifyTokens> {
   const res = await fetch('https://accounts.spotify.com/api/token', {
     method: 'POST',
@@ -48,8 +59,11 @@ async function requestTokens(app: SpotifyCredentials, grant: Record<string, stri
     body: new URLSearchParams(grant),
   });
 
-  const data = (await res.json()) as SpotifyTokens;
-  if (!res.ok) throw new Error(`Spotify token request failed: ${JSON.stringify(data)}`);
+  const data = (await res.json()) as SpotifyTokens & { error?: string };
+  if (!res.ok) {
+    if (res.status === 400 && data.error === 'invalid_grant') throw new SpotifyGrantRevokedError();
+    throw new Error(`Spotify token request failed: ${JSON.stringify(data)}`);
+  }
   return data;
 }
 

@@ -7,6 +7,7 @@ import {
   findTrack,
   hasActiveDevice,
   queueTrack,
+  SpotifyGrantRevokedError,
   type SpotifyApi,
   type SpotifyApp,
   type SpotifyTokens,
@@ -125,6 +126,24 @@ test('refuses to call Spotify without an authorization to refresh', async () => 
   const api = spotifyApi({ app: APP, readRefreshToken: () => null, saveRefreshToken: () => {} });
 
   await assert.rejects(api('/me/player'), /No stored Spotify authorization/);
+});
+
+test('a revoked grant refuses distinctly, so a caller can tell it apart from a transient failure', async (t) => {
+  t.mock.method(globalThis, 'fetch', async () => json({ error: 'invalid_grant' }, { status: 400 }));
+  const api = spotifyApi({ app: APP, readRefreshToken: () => 'stale', saveRefreshToken: () => {} });
+
+  await assert.rejects(api('/me/player'), SpotifyGrantRevokedError);
+});
+
+test('a transient refresh failure is a plain error, not SpotifyGrantRevokedError', async (t) => {
+  t.mock.method(globalThis, 'fetch', async () => json({ error: 'server_error' }, { status: 502 }));
+  const api = spotifyApi({ app: APP, readRefreshToken: () => 'stale', saveRefreshToken: () => {} });
+
+  await assert.rejects(api('/me/player'), (err: unknown) => {
+    assert.ok(err instanceof Error);
+    assert.ok(!(err instanceof SpotifyGrantRevokedError));
+    return true;
+  });
 });
 
 test('holds one identity per client, not one per process', async (t) => {

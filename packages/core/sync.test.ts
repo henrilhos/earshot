@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import { test } from 'node:test';
 
 import type { NowPlaying } from './lastfm.ts';
-import type { TrackMatch } from './spotify.ts';
+import { SpotifyGrantRevokedError, type TrackMatch } from './spotify.ts';
 import { type DeliveryAttempt, type Subscriber, type SyncDeps, tick } from './sync.ts';
 
 const NOW_PLAYING: NowPlaying = { artist: 'Kendrick Lamar', title: 'Alright' };
@@ -18,6 +18,7 @@ function subscriber(queueOwnerId: string, overrides: Partial<Subscriber> = {}): 
     hasActiveDevice: async () => true,
     findTrack: async () => MATCH,
     queueTrack: async () => {},
+    park: async () => {},
     ...overrides,
   };
 }
@@ -199,6 +200,79 @@ test('records error and the reason when the queue attempt fails, without throwin
     { queueOwnerId: 'owner-1', artist: 'Kendrick Lamar', title: 'Alright', outcome: 'error', exact: null, errorMessage: '403' },
   ]);
   assert.equal(calls.logs.at(-1), 'ERROR while processing "Alright" by Kendrick Lamar - owner-1: 403');
+});
+
+test('parks a Subscriber whose Spotify grant died and records unauthorized', async () => {
+  let parked = false;
+  const { deps, calls } = harness([
+    subscriber('owner-1', {
+      queueTrack: async () => {
+        throw new SpotifyGrantRevokedError();
+      },
+      park: async () => {
+        parked = true;
+      },
+    }),
+  ]);
+
+  await tick(deps);
+
+  assert.equal(parked, true);
+  assert.deepEqual(calls.delivered, [
+    {
+      queueOwnerId: 'owner-1',
+      artist: 'Kendrick Lamar',
+      title: 'Alright',
+      outcome: 'unauthorized',
+      exact: null,
+      errorMessage: 'Spotify refused the grant (invalid_grant): it will not become valid by retrying.',
+    },
+  ]);
+  assert.match(
+    calls.logs.at(-1) ?? '',
+    /^UNAUTHORIZED \(Spotify grant revoked, parking pending reauthorization\) - "Alright" by Kendrick Lamar - owner-1$/,
+  );
+});
+
+test('a transient Spotify failure is recorded as error, not unauthorized, and parks nobody', async () => {
+  let parked = false;
+  const { calls, deps } = harness([
+    subscriber('owner-1', {
+      queueTrack: async () => {
+        throw new Error('502 Bad Gateway');
+      },
+      park: async () => {
+        parked = true;
+      },
+    }),
+  ]);
+
+  await tick(deps);
+
+  assert.equal(parked, false);
+  assert.equal(calls.delivered[0]?.outcome, 'error');
+});
+
+test('a failure to park is logged rather than thrown, and the unauthorized Delivery still lands', async () => {
+  const { deps, calls } = harness([
+    subscriber('owner-1', {
+      queueTrack: async () => {
+        throw new SpotifyGrantRevokedError();
+      },
+      park: async () => {
+        throw new Error('database is locked');
+      },
+    }),
+  ]);
+
+  await tick(deps);
+
+  assert.deepEqual(calls.logs, [
+    'New now-playing detected: "Alright" by Kendrick Lamar',
+    'UNAUTHORIZED (Spotify grant revoked, parking pending reauthorization) - "Alright" by Kendrick Lamar - owner-1',
+    'Could not park owner-1 after their Spotify grant died: database is locked',
+  ]);
+  assert.equal(calls.delivered[0]?.outcome, 'unauthorized');
 });
 
 test('one Subscriber failing costs the others no Delivery', async () => {

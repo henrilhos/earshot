@@ -7,6 +7,7 @@ import {
   queueTrack,
   reason,
   recordDelivery,
+  setNeedsReauthorization,
   spotifyApi,
   type SyncDeps,
   tick,
@@ -16,7 +17,7 @@ import { loadCipher, loadConfig } from './config.ts';
 import { DATABASE_FILE, openLocalDatabase } from './database.ts';
 import { awaitOrFail, fail, loadOrFail } from './fail.ts';
 import { importJsonFiles, STATE_FILE, TOKENS_FILE } from './legacy.ts';
-import { LOCAL_QUEUE_OWNER, requireLocalRefreshToken, saveLocalRefreshToken } from './owner.ts';
+import { localQueueOwner, LOCAL_QUEUE_OWNER, requireLocalRefreshToken, saveLocalRefreshToken } from './owner.ts';
 
 const watchedAccount = process.argv[2] || fail('Which Last.fm account? Usage: earshot <lastfm-username>');
 
@@ -60,15 +61,21 @@ const deps: SyncDeps = {
   claim: (key) => claimNowPlaying(db, watchedAccount, key),
   // Standalone has exactly one Queue Owner and the command line names the one
   // Watched Account this process subscribes them to, so the fan-out is always
-  // this one Subscriber.
-  subscribers: async () => [
-    {
-      queueOwnerId: LOCAL_QUEUE_OWNER,
-      hasActiveDevice: () => hasActiveDevice(api),
-      findTrack: (artist, title) => findTrack(api, artist, title),
-      queueTrack: (uri) => queueTrack(api, uri),
-    },
-  ],
+  // this one Subscriber - unless their grant already died, in which case
+  // there is nothing to fan out to until they run `earshot auth` again.
+  subscribers: async () => {
+    const owner = await localQueueOwner(db);
+    if (owner?.needsReauthorization) return [];
+    return [
+      {
+        queueOwnerId: LOCAL_QUEUE_OWNER,
+        hasActiveDevice: () => hasActiveDevice(api),
+        findTrack: (artist, title) => findTrack(api, artist, title),
+        queueTrack: (uri) => queueTrack(api, uri),
+        park: () => setNeedsReauthorization(db, LOCAL_QUEUE_OWNER, true),
+      },
+    ];
+  },
   recordDelivery: (delivery) =>
     recordDelivery(db, { ...delivery, watchedAccountId: watchedAccount, createdAt: Date.now() }),
   log,
